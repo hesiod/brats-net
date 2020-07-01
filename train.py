@@ -89,7 +89,6 @@ run_iter = 0
 
 # %%
 run_iter += 1
-batch_size=4
 writer = SummaryWriter('runs/brats3_{}_{}'.format(lr, run_iter))
 print('Writing graph')
 X = torch.randn(size=(2, 4, 240, 240), dtype=torch.float32)
@@ -125,26 +124,23 @@ for epoch in range(num_epochs-1):
     batch_count = len(train_iter)
     
     print('Total batches: {}'.format(batch_count))
-    
-    for i, (X, y) in enumerate(train_iter): 
-        global_iter += 1      
+
+    for i, (X, y) in enumerate(train_iter):
+        global_iter += 1
         net.train()
-        
+
         X = X.float().to(device)
         y = y.float().to(device)
         y_hat = net(X).squeeze(1)
-        
-        #l = criterion(y_hat, y)
-        bl = bce_criterion(y_hat, y)
-        dl = dice_loss(y_hat, y)
-        l = bl + dl
+
+        l = criterion(y_hat, y)
         train_loss_epoch += float(l)
-        
+
         optimizer.zero_grad()
         l.backward()
         nn.utils.clip_grad_value_(net.parameters(), 0.1)
         optimizer.step()
-        
+
         if i > 0 and (i % 50 == 0):
             print('saving checkpoint...')
             torch.save(net, 'checkpoint_{}.pt'.format(i))
@@ -158,7 +154,7 @@ for epoch in range(num_epochs-1):
         writer.add_scalar('loss/total_loss', float(l), global_iter)
         writer.add_scalar('loss/bce_loss', float(bl), global_iter)
         writer.add_scalar('loss/dice_loss', float(dl), global_iter)
-        writer.add_images('masks/0_base', X[:,0:3,:,:], global_iter)
+        writer.add_images('masks/0_base', X[:, 0:3, :, :], global_iter)
         y_us = y.unsqueeze(1)
         y_hat_us = y_hat.unsqueeze(1)
         y_hat_us_sig = torch.sigmoid(y_hat_us) > 0.5

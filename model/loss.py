@@ -17,10 +17,9 @@ def dice_loss(pred, target):
 
 
 class Loss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, pos_weight):
         super(Loss, self).__init__()
-        positive_bias = torch.Tensor([5.0])
-        self.bce_loss = torch.nn.BCEWithLogitsLoss(pos_weight=positive_bias)
+        self.bce_loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     def forward(self, predicted, target):
         bce = self.bce_loss(predicted, target)

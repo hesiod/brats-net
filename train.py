@@ -178,7 +178,8 @@ if should_check:
 
 # %%
 
-criterion = model.loss.Loss()
+pos_weight = torch.Tensor([5.0]).to(ctx.device)
+criterion = model.loss.Loss(pos_weight)
 
 tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
 

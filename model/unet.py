@@ -43,9 +43,11 @@ class Up(nn.Module):
         padding_left = padding // 2
         padding_right = padding - padding_left
 
-        self.up = nn.Sequential(
-            nn.ConvTranspose2d(size2p1, size2, kernel_size=2, stride=2),
-            nn.ReflectionPad2d(padding=(padding_left, padding_right, padding_top, padding_bottom)))
+        self.up = nn.ConvTranspose2d(size2p1, size2, kernel_size=2, stride=2)
+        self.pad = nn.ReflectionPad2d(padding=(padding_left, padding_right, padding_top, padding_bottom))
+        #self.up = nn.Sequential(
+        #    nn.ConvTranspose2d(size2p1, size2, kernel_size=2, stride=2),
+        #    nn.ReflectionPad2d(padding=(padding_left, padding_right, padding_top, padding_bottom)))
         self.conv = nn.Sequential(
             nn.Conv2d(size2p1, size2, kernel_size=3),
             nn.BatchNorm2d(size2),
@@ -55,7 +57,7 @@ class Up(nn.Module):
             nn.ReLU())
 
     def forward(self, X, Z):
-        X = self.up(X)
+        X = self.pad(self.up(X))
         X = torch.cat([X, Z], dim=1)
 
         return self.conv(X)

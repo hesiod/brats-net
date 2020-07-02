@@ -56,7 +56,6 @@ class BRATS(td.Dataset):
     def __getitem__(self, idx):
         sample_index = idx // self.slice_count
         slice_index = self.slice_offset_start + idx % self.slice_count
-        # print('sample_index = {}, slice_index = {}'.format(sample_index, slice_index)
 
         nifti_data = np.asarray(self.data[sample_index].dataobj[:, :, slice_index, :])
         nifti_slice = torch.from_numpy(np.copy(nifti_data)).transpose(0, 2)
@@ -68,8 +67,6 @@ class BRATS(td.Dataset):
             if (nifti_norm > 0.0):
                 nifti_mean = torch.mean(nifti_slice, dim=(1, 2)) + 1e-9
                 nifti_std = torch.std(nifti_slice, dim=(1, 2)) + 1e-9
-                # print('sampleidx = {}, iidx = {}, fn = {}, mean = {}, std = {}, shape = {}'.format(
-                # idx, sample_index, self.filenames[sample_index], nifti_mean, nifti_std, nifti_slice.shape))
                 nifti_normalize = torchvision.transforms.Normalize(nifti_mean, nifti_std)
             else:
                 nifti_normalize = None

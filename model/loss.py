@@ -3,6 +3,7 @@ import torch
 __all__ = ['Loss']
 
 
+
 # https://github.com/pytorch/pytorch/issues/1249
 def dice_loss(pred, target):
     smooth = 1.
@@ -18,10 +19,11 @@ def dice_loss(pred, target):
 class Loss(torch.nn.Module):
     def __init__(self):
         super(Loss, self).__init__()
-        self.bce = torch.nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([5.0]))
-    
-    def forward(self, predicted, target):
-        bce_loss = self.bce(predicted, target)
-        dice_loss = dice_loss(predicted, target)
+        positive_bias = torch.Tensor([5.0])
+        self.bce_loss = torch.nn.BCEWithLogitsLoss(pos_weight=positive_bias)
 
-        return bce_loss + dice_loss
+    def forward(self, predicted, target):
+        bce = self.bce_loss(predicted, target)
+        dice = dice_loss(predicted, target)
+
+        return bce + dice

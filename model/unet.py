@@ -43,10 +43,9 @@ class Up(nn.Module):
         padding_left = padding // 2
         padding_right = padding - padding_left
 
-        self.up = nn.ConvTranspose2d(size2p1, size2, kernel_size=2, stride=2)
-        # self.up = nn.ConvTranspose2d(2048, 1024, kernel_size=2, stride=2)
-        self.pad = nn.ReflectionPad2d(padding=(
-            padding_left, padding_right, padding_top, padding_bottom))
+        self.up = nn.Sequential(
+            nn.ConvTranspose2d(size2p1, size2, kernel_size=2, stride=2),
+            nn.ReflectionPad2d(padding=(padding_left, padding_right, padding_top, padding_bottom)))
         self.conv = nn.Sequential(
             nn.Conv2d(size2p1, size2, kernel_size=3),
             nn.BatchNorm2d(size2),
@@ -57,15 +56,7 @@ class Up(nn.Module):
 
     def forward(self, X, Z):
         X = self.up(X)
-
-        # diff_x = Z.size()[2] - X.size()[2]
-        # diff_y = Z.size()[3] - X.size()[3]
-        # pad_x = diff_x >> 1
-        # pad_y = diff_y >> 1
-        # print('diff_x = {}, diff_y = {}'.format(diff_x, diff_y))
-        # X = F.pad(X, pad=(pad_x, diff_x - pad_x, pad_y, diff_x - pad_y))
-
-        X = torch.cat([self.pad(X), Z], dim=1)
+        X = torch.cat([X, Z], dim=1)
 
         return self.conv(X)
 
@@ -74,7 +65,6 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
 
-        # self.num_inputs = num_inputs
         self.input_channels = 4
 
         self.down1 = nn.Sequential(

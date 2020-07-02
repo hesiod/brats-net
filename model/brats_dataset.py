@@ -34,8 +34,8 @@ class BRATS(td.Dataset):
                     self.data.append(nifti_img)
                     self.filenames.append(abs_fn)
 
-        self.slice_offset_start = 40
-        self.slice_offset_end = 40
+        self.slice_offset_start = 10
+        self.slice_offset_end = 10
         self.slice_count = 155 - self.slice_offset_start - self.slice_offset_end
 
         self.transform_cache = {}

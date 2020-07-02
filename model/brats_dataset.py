@@ -5,8 +5,9 @@ import torch
 import torch.utils.data as td
 import torchvision
 import numpy as np
+import math
 
-__all__ = ['BRATS']
+__all__ = ['BRATS', 'DataSplitter']
 
 
 class BRATS(td.Dataset):
@@ -80,3 +81,21 @@ class BRATS(td.Dataset):
             label_slice = torch.from_numpy(np.copy(label_data)).transpose(0, 1)
 
         return nifti_slice, label_slice
+
+
+class DataSplitter:
+    def __init__(self, data_folder='Task01_BrainTumour'):
+        self.brats_train = BRATS(data_folder, train=True)
+        self.brats_test = BRATS(data_folder, train=False)
+        # self.train_iter = td.DataLoader(brats_train, batch_size, shuffle=True, num_workers=num_workers)
+        # self.test_iter = td.DataLoader(brats_test, batch_size, shuffle=False, num_workers=num_workers)
+
+    def split_data(self, num_epochs):
+        datasize = len(self.brats_train)
+        data_per_epoch = int(math.floor(datasize/num_epochs))
+        print('total count = {}, num_epochs = {}, per epoch = {}'.format(datasize, num_epochs, data_per_epoch))
+        subsets = torch.full(size=[num_epochs], fill_value=data_per_epoch, dtype=torch.int)
+        remainder = datasize - num_epochs * data_per_epoch
+        if remainder > 0:
+            subsets = torch.cat([subsets, torch.Tensor([remainder]).int()])
+        return td.random_split(self.brats_train, subsets)

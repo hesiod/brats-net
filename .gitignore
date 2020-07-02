@@ -1,0 +1,11 @@
+# Python artifacts
+**/__pycache__
+.ipynb_checkpoints
+
+# Archives, Data
+*.tar
+Task01_BrainTumour
+
+# Networks
+*.onnx
+*.pt

@@ -13,32 +13,6 @@ import model.unet
 import model.utils
 import model.loss
 
-# %% [markdown]
-# # Possible improvements
-# 
-# * Go 3D (e.g. V-Net)
-# * Change model parameters (more down/up layers)
-# * Fix data loader
-#  - Detect empty slices
-#  - Detect slices without matching labels
-#  - Data augmentation (cropping, deform)
-# * Try other optimizers
-# * Tune hyperparameters
-#  - k-fold-Validation
-# * One Channel, Transfer Learning, Add another layer later
-# * Try other datasets (hippocampus, liver)
-# * Experiment with Loss Functions
-#  - https://lars76.github.io/neural-networks/object-detection/losses-for-segmentation/
-#  - https://github.com/JunMa11/SegLoss
-# * Accuracy metric (measure overlay predicted/true)
-# * Participate in Challenge
-# 
-# # Orga
-# * Comment code
-# * Try on Colab
-# * Upload to GitHub
-# * Executive Summary
-
 
 # %%
 

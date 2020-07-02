@@ -1,5 +1,5 @@
 # Medical Image Segmentation: Brain Tumours
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/googlecolab/colabtools/blob/master/notebooks/colab-github-demo.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hesiod/brats-net/blob/master/net.ipynb)
 ## Relevant papers
 * U-Net: Convolutional Networks for Biomedical Image Segmentation, https://arxiv.org/abs/1505.04597, https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/
 * nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation, https://arxiv.org/abs/1809.10486

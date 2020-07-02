@@ -92,7 +92,8 @@ class Net(nn.Module):
         self.up2 = Up(7, 8)
         self.up1 = Up(6, 8)
         self.out = nn.Sequential(
-            nn.Conv2d(64, 1, kernel_size=1)
+            nn.Conv2d(64, 1, kernel_size=1),
+            nn.ZeroPad2d(padding=(4, 4, 4, 4))
         )
 
         downup = nn.Sequential(
@@ -117,7 +118,7 @@ class Net(nn.Module):
         H7 = self.up3(H6, H3)
         H8 = self.up2(H7, H2)
         H9 = self.up1(H8, H1)
-        out = F.pad(self.out(H9), pad=(4, 4, 4, 4))
+        out = self.out(H9)
         return out
 
 

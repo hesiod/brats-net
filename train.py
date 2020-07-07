@@ -6,6 +6,7 @@ import torch.utils.data as td
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 import os
+from tqdm import tqdm, trange
 
 # %%
 import model.brats_dataset
@@ -70,8 +71,8 @@ class TrainContext:
 
         self.brats_train_perepoch = self.data.split_data(num_epochs)
 
-        for epoch in range(num_epochs-1):
-            self.run_epoch(epoch)
+        for epoch in trange(num_epochs-1, desc='epoch', position=0):
+           self.run_epoch(epoch)
 
         self.writer.close()
 
@@ -84,15 +85,16 @@ class TrainContext:
         #test_iter = td.DataLoader(brats_test, batch_size, shuffle=False, num_workers=num_workers)
         
         batch_count = len(train_iter)
-        
-        print('Total batches: {}'.format(batch_count))
 
+        t = tqdm(desc='batch', total=len(train_iter), position=1)
         train_loss_epoch = 0.0
         for i, (X, y) in enumerate(train_iter):
             batch_loss = self.run_batch(i, X, y)
             train_loss_epoch += batch_loss
-            print('batch {:4}/{} batchloss {}'.format(i+1, batch_count, batch_loss))
+            t.update(1)
+            t.set_postfix({'batchloss': batch_loss})
         train_loss_epoch /= batch_count
+        t.close()
 
         self.writer.add_scalar('loss/train', train_loss_epoch, self.global_iter)
 
@@ -104,7 +106,7 @@ class TrainContext:
                 y_test = y_test.float().to(self.ctx.device)
                 y_test_hat = self.ctx.net(X_test).squeeze(1)
                 b_l = self.criterion(y_test_hat, y_test)
-                test_loss_epoch += float(b_l)
+                test_loss_epoch += b_l.item()
             test_loss_epoch /= len(test_iter)
 
         self.writer.add_scalar('loss/test', test_loss_epoch, self.global_iter)

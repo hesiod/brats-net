@@ -114,9 +114,8 @@ class TrainContext:
 
         self.checkpoint()
 
-
         print('epoch {}/{}, train loss {}, test loss {}'.format(epoch+1,
-            num_epochs, self.train_loss_epoch, test_loss_epoch))
+            num_epochs, train_loss_epoch, test_loss_epoch))
 
     def run_batch(self, i, X, y):
         self.global_iter += 1

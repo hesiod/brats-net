@@ -14,8 +14,8 @@ def load_dataset_metadata(data_dir):
         dataset_info = json.loads(dataset_file.read())
     return dataset_info
 
-def create_hdf(data_dir, dataset_info):
-    with h5py.File("brats_training_new.hdf5", "a") as hf:
+def create_hdf(hdf_filename, data_dir, dataset_info):
+    with h5py.File(hdf_filename, "a") as hf:
         slices_per_file = 155
         files = dataset_info.get('training')
         file_count = len(files)
@@ -68,4 +68,4 @@ def create_hdf(data_dir, dataset_info):
 if __name__ == '__main__':
     data_dir = 'Task01_BrainTumour'
     dataset_info = load_dataset_metadata(data_dir)
-    create_hdf(data_dir, dataset_info)
+    create_hdf("brats_training.hdf5", data_dir, dataset_info)

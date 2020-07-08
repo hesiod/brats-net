@@ -155,7 +155,7 @@ class TrainContext:
 
 # %%
 
-dctx = model.brats_dataset.DataSplitter()
+dctx = model.brats_dataset.DataSplitter('brats_training.hdf5')
 
 
 # %%

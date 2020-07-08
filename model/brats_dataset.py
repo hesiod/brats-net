@@ -9,14 +9,6 @@ from tqdm import tqdm, trange
 __all__ = ['BRATS', 'DataSplitter']
 
 
-def load_sets(hdf_filename):
-    hf = h5py.File(hdf_filename, "r")
-    sets = []
-    for v in tqdm(hf.get('imagesTr').values()):
-        h = HBRATS(v)
-        sets.append(h)
-    return td.ConcatDataset(sets)
-
 class BRATS(td.ConcatDataset):
     def __init__(self, hdf_filename):
         hf = h5py.File(hdf_filename, "r")
@@ -26,6 +18,7 @@ class BRATS(td.ConcatDataset):
             sets.append(h)
 
         super().__init__(sets)
+
 
 class HBRATS(td.Dataset):
     def __init__(self, scan_grp):

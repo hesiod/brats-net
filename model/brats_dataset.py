@@ -11,25 +11,38 @@ __all__ = ['BRATS', 'DataSplitter']
 
 class BRATS(td.ConcatDataset):
     def __init__(self, hdf_filename):
-        hf = h5py.File(hdf_filename, "r")
-        sets = []
-        for v in tqdm(hf.get('imagesTr').values()):
-            h = HBRATS(v)
-            sets.append(h)
+        self.hdf_filename = hdf_filename
+
+        with h5py.File(self.hdf_filename, 'r') as hf:
+            sets = []
+            for v in tqdm(hf.get('imagesTr').values()):
+                h = HBRATS(self, v)
+                sets.append(h)
+
+        self.hdf_file = None
 
         super().__init__(sets)
 
-
 class HBRATS(td.Dataset):
-    def __init__(self, scan_grp):
+    def __init__(self, parent, scan_grp):
         super(HBRATS).__init__()
 
-        self.slices = scan_grp
+
+        self.parent = parent
+
+        self.scan_name = scan_grp.name
+        self.slice_count = len(scan_grp)
+        self.slices = None
 
     def __len__(self):
-        return len(self.slices)
+        return self.slice_count
 
     def __getitem__(self, idx):
+        if self.parent.hdf_file is None:
+            self.parent.hdf_file = h5py.File(self.parent.hdf_filename, 'r')
+        if self.slices is None:
+            self.slices = self.parent.hdf_file.get(self.scan_name)
+
         for slice_idx, slice_val in enumerate(self.slices.values()):
             if slice_idx == idx:
                 slice_grp = slice_val

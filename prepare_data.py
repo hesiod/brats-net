@@ -14,7 +14,33 @@ def load_dataset_metadata(data_dir):
         dataset_info = json.loads(dataset_file.read())
     return dataset_info
 
+def calc_means(data_dir, dataset_info):
+    slices_per_file = 155
+    files = dataset_info.get('training')
+    file_count = len(files)
+    means = np.empty(shape=(file_count, 4))
+    stddev = np.empty_like(means)
+    for fidx, f in enumerate(tqdm(files, desc='scan', position=0)):
+        nifti_fn = os.path.join(data_dir, f.get('image'))
+        nifti_img = nib.load(nifti_fn)
+        nifti_alldata = nifti_img.get_fdata(caching='unchanged')
+
+        image_masked = np.ma.masked_less(nifti_alldata, 1e-3)
+        means[fidx, :] = image_masked.mean(axis=(0, 1, 2))
+        stddev[fidx, :] = image_masked.std(axis=(0, 1, 2))
+
+        nifti_img.uncache()
+
+    means = means.mean(axis=0)
+    stddev = stddev.mean(axis=0)
+
+    print('per-channel mean: {}'.format(means))
+    print('per-channel standard deviation: {}'.format(stddev))
+
 def create_hdf(hdf_filename, data_dir, dataset_info):
+    mean =   np.array([460.91295331, 607.31359224, 604.41613027, 481.6058893])
+    stddev = np.array([151.81789154, 150.64656103, 157.67084461, 183.92931095])
+
     with h5py.File(hdf_filename, "a") as hf:
         slices_per_file = 155
         files = dataset_info.get('training')
@@ -39,10 +65,8 @@ def create_hdf(hdf_filename, data_dir, dataset_info):
                 if img_norm < 1e-3 or label_norm < 1e-3:
                     continue
 
-                nifti_max = nifti_data.max(axis=(1, 2))
                 for j in range(4):
-                    if nifti_max[j] != 0.0:
-                        nifti_data[j, :, :] = nifti_data[j, :, :] / nifti_max[j]
+                    nifti_data[j, :, :] = (nifti_data[j, :, :] - mean[j]) / stddev[j]
 
                 slice_grp = grp.create_group('slice_{}'.format(i))
                 slice_grp.attrs['slice_index'] = i
@@ -68,4 +92,5 @@ def create_hdf(hdf_filename, data_dir, dataset_info):
 if __name__ == '__main__':
     data_dir = 'Task01_BrainTumour'
     dataset_info = load_dataset_metadata(data_dir)
+    calc_means(data_dir, dataset_info)
     create_hdf("brats_training.hdf5", data_dir, dataset_info)

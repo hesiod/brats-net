@@ -21,7 +21,6 @@ class DataPrep():
         self.dataset_info = load_dataset_metadata(data_dir)
         self.channel_mean = None
         self.channel_stddev = None
-        self.slices_per_file = 155
 
     def calc_means(self):
         files = self.dataset_info.get('training')
@@ -32,6 +31,10 @@ class DataPrep():
             nifti_fn = os.path.join(self.data_dir, f.get('image'))
             nifti_img = nib.load(nifti_fn)
             nifti_alldata = nifti_img.get_fdata(caching='unchanged')
+
+            # If source data does not have a dedicated channel dimension, add one
+            if len(nifti_alldata.shape) < 4:
+                    nifti_alldata = np.expand_dims(nifti_alldata, axis=3)
 
             image_masked = np.ma.masked_less(nifti_alldata, 1e-3)
             means[fidx, :] = image_masked.mean(axis=(0, 1, 2))
@@ -62,7 +65,11 @@ class DataPrep():
                 nifti_alldata = nifti_img.get_fdata(caching='unchanged')
                 label_alldata = label_img.get_fdata(caching='unchanged')
 
-                for i in range(self.slices_per_file):
+                # If source data does not have a dedicated channel dimension, add one
+                if len(nifti_alldata.shape) < 4:
+                    nifti_alldata = np.expand_dims(nifti_alldata, axis=3)
+
+                for i in range(nifti_alldata.shape[2]):
                     nifti_data = nifti_alldata[:, :, i, :]
                     nifti_data = nifti_data.transpose(2, 1, 0)
                     label_data = label_alldata[:, :, i]

@@ -54,8 +54,7 @@ class TrainContext:
         self.batch_size = batch_size
 
         self.optimizer = torch.optim.SGD(self.ctx.net.parameters(), lr=lr)
-        #optimizer = torch.optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
-        #self.scheduler = ReduceLROnPlateau(self.optimizer, 'min')
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', patience=2)
 
     def run(self, num_epochs):
         self.ctx.run_iter += 1
@@ -116,9 +115,12 @@ class TrainContext:
                 test_loss_epoch += b_l.item()
             test_acc_epoch /= len(test_iter)
             test_loss_epoch /= len(test_iter)
+            self.scheduler.step(test_loss_epoch)
 
         self.writer.add_scalar('accuracy/test_acc', test_acc_epoch, self.global_iter)
         self.writer.add_scalar('loss/test', test_loss_epoch, self.global_iter)
+        for idx, group in enumerate(self.optimizer.param_groups):
+            self.writer.add_scalar('meta/lr/group_{}'.format(idx + 1), group['lr'], self.global_iter)
         self.writer.flush()
 
         self.checkpoint()

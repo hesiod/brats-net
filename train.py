@@ -31,13 +31,16 @@ class Context:
 
         self.run_iter = 0
 
+        self.model_shape = (1, 4, 240, 240)
+
     def check_topology(self):
-        dummy_input = torch.randn(size=(2, 4, 240, 240), dtype=torch.float32)
-        y = self.net(dummy_input)
+        with torch.no_grad():
+            dummy_input = torch.empty(size=self.model_shape, dtype=torch.float32)
+            y = self.net(dummy_input)
 
 
     def export_onnx(self, filename):
-        dummy_input = torch.randn(1, 4, 240, 240)
+        dummy_input = torch.empty(size=self.model_shape)
         torch.onnx.export(self.net, dummy_input, filename, verbose=True)
 
 class TrainContext:
@@ -62,7 +65,7 @@ class TrainContext:
         self.writer = SummaryWriter(os.path.join('runs', run_name))
 
         print('Writing graph')
-        dummy_input = torch.randn(size=(2, 4, 240, 240), dtype=torch.float32)
+        dummy_input = torch.empty(size=self.ctx.model_shape, dtype=torch.float32)
         self.writer.add_graph(self.ctx.net, dummy_input)
         del dummy_input
         print('done')

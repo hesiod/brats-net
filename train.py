@@ -59,7 +59,7 @@ class TrainContext:
 
     def run(self, num_epochs):
         self.ctx.run_iter += 1
-        run_name = 'runs/run_{}_{}_{}'.format(self.experiment_name, lr, self.ctx.run_iter)
+        run_name = 'run_{}_{}_{}'.format(self.experiment_name, lr, self.ctx.run_iter)
 
         print('Commencing {}'.format(run_name))
         self.writer = SummaryWriter(os.path.join('runs', run_name))

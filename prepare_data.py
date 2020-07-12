@@ -48,13 +48,18 @@ class DataPrep():
         print('per-channel mean: {}'.format(self.channel_mean))
         print('per-channel standard deviation: {}'.format(self.channel_stddev))
 
-    def create_hdf(self, hdf_filename):
+    def create_hdf(self, hdf_filename=None):
         if self.channel_mean is None:
             self.channel_mean =   np.array([460.91295331, 607.31359224, 604.41613027, 481.6058893])
         if self.channel_stddev is None:
             self.channel_stddev = np.array([151.81789154, 150.64656103, 157.67084461, 183.92931095])
+        if hdf_filename is None:
+            hdf_filename = 'dataset_{}.hdf5'.format(self.dataset_info.get('name'))
 
         with h5py.File(hdf_filename, "a") as hf:
+            hf.attrs['name'] = self.dataset_info.get('name')
+            hf.attrs['description'] = self.dataset_info.get('description')
+
             files = self.dataset_info.get('training')
             for f in tqdm(files, desc='scan', position=0):
                 grp = hf.create_group(f.get('image'))

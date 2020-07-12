@@ -90,7 +90,7 @@ class TrainContext:
         batch_count = len(train_iter)
 
         # Training
-        t = tqdm(desc='batch', total=len(train_iter), position=1)
+        t = tqdm(desc='batch', total=len(train_iter), position=1, leave=False)
         train_loss_epoch = 0.0
         for i, (X, y) in enumerate(train_iter):
             batch_loss = self.run_batch(i, X, y)

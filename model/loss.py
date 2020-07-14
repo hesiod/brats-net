@@ -12,10 +12,17 @@ class DiceLoss(nn.Module):
 
     # https://github.com/pytorch/pytorch/issues/1249
     def forward(self, pred, target):
+        #print('pred: {}'.format(pred.size()))
+        #print('target: {}'.format(target.size()))
         iflat = pred.view(-1)
         tflat = target.view(-1)
+        #print('iflat: {}'.format(iflat.size()))
+        #print(iflat)
+        #print('tflat: {}'.format(tflat.size()))
+        #print(tflat)
         intersection = (iflat * tflat).sum()
-
+        #print('inter: {}'.format(intersection.size()))
+        #print(intersection)
         p = (2. * intersection + self.smooth)
         q = (iflat.sum() + tflat.sum() + self.smooth)
         return (-1)*(p/q)
@@ -33,4 +40,4 @@ class Loss(nn.Module):
         predicted_sm = self.sigmoid(predicted)
         dice = self.dice_loss(predicted_sm, target)
 
-        return bce + dice
+        return bce, dice

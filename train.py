@@ -11,7 +11,7 @@ from tqdm import tqdm, trange
 # %%
 import model.brats_dataset
 import model.unet
-import model.utils
+import model.utils as utils
 import model.loss
 
 
@@ -86,6 +86,7 @@ class TrainContext:
         
         batch_count = len(train_iter)
 
+        # Training
         t = tqdm(desc='batch', total=len(train_iter), position=1)
         train_loss_epoch = 0.0
         for i, (X, y) in enumerate(train_iter):
@@ -93,19 +94,24 @@ class TrainContext:
             train_loss_epoch += batch_loss
             t.update(1)
             t.set_postfix({'batchloss': batch_loss})
+
         train_loss_epoch /= batch_count
         t.close()
 
         self.writer.add_scalar('loss/train', train_loss_epoch, self.global_iter)
 
+        # Evaluating
         self.ctx.net.eval()
         test_loss_epoch = 0.0
         with torch.no_grad():
             for X_test, y_test in test_iter:
                 X_test = X_test.float().to(self.ctx.device)
                 y_test = y_test.float().to(self.ctx.device)
+                #print('X: {}'.format(X_test.size()))
+                #print('y: {}'.format(y_test.size()))
                 y_test_hat = self.ctx.net(X_test).squeeze(1)
-                b_l = self.criterion(y_test_hat, y_test)
+                #print('y_hat: {}'.format(y_test_hat.size()))
+                b_l = self.criterion(y_test_hat, y_test)[0] + self.criterion(y_test_hat, y_test)[1]
                 test_loss_epoch += b_l.item()
             test_loss_epoch /= len(test_iter)
 
@@ -125,7 +131,14 @@ class TrainContext:
         y = y.float().to(self.ctx.device)
         y_hat = self.ctx.net(X).squeeze(1)
 
-        l = self.criterion(y_hat, y)
+        # Accuracy metric
+        print('Accuracy: {}'.format(utils.jaccard(y_hat, y)))
+
+        # Loss metrics
+        bce = self.criterion(y_hat, y)[0]
+        dice = self.criterion(y_hat, y)[1]
+        l = bce + dice
+        #   print('Accuracy: {}'.format(dice))
 
         self.optimizer.zero_grad()
         l.backward()
@@ -155,40 +168,42 @@ class TrainContext:
 
 # %%
 
-dctx = model.brats_dataset.DataSplitter()
+if __name__ == '__main__':
+
+    dctx = model.brats_dataset.DataSplitter()
 
 
-# %%
+    # %%
 
-# Identifier for this group of runs
-meta_name = 'brats4'
-batch_size = 32
-num_workers = 6
-num_epochs = 50
-lr = 0.0001
-should_check = False
+    # Identifier for this group of runs
+    meta_name = 'brats4'
+    batch_size = 4
+    num_workers = 4
+    num_epochs = 50
+    lr = 0.0001
+    should_check = False
 
-# %%
+    # %%
 
-ctx = Context('checkpoint_sd.pt')
+    ctx = Context() #'checkpoint_sd.pt'
 
-if should_check:
-    # Check whether layer inputs/outputs dimensions are correct
-    # by conducting a test run
-    ctx.check_topology()
+    if should_check:
+        # Check whether layer inputs/outputs dimensions are correct
+        # by conducting a test run
+        ctx.check_topology()
 
-# %%
+    # %%
 
-pos_weight = torch.Tensor([5.0]).to(ctx.device)
-criterion = model.loss.Loss(pos_weight)
+    pos_weight = torch.Tensor([5.0]).to(ctx.device)
+    criterion = model.loss.Loss(pos_weight)
 
-tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
+    tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
 
-# %%
+    # %%
 
-tctx.run(num_epochs)
+    tctx.run(num_epochs)
 
-# %%
+    # %%
 
-ctx.export_onnx("net5.onnx")
+    ctx.export_onnx("net5.onnx")
 

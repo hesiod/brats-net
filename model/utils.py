@@ -15,14 +15,8 @@ def jaccard(prediction, truth):
 
     with torch.no_grad():
         for i in range(prediction.shape[0]):
-            intersection = torch.logical_and(prediction[i::], truth[i::])
-            union = torch.logical_or(prediction[i::], truth[i::])
-            print(prediction[i::].size())
-            print(truth[i::].size())
-            print(prediction[i::])
-            print(truth[i::])
-            #print(torch.sum(intersection))
-            #print(torch.sum(union))
+            intersection = torch.logical_and(prediction[i, :, :], truth[i, :, :])
+            union = torch.logical_or(prediction[i, :, :], truth[i, :, :])
             acc.append(torch.sum(intersection).double() / torch.sum(union).double())
 
     # Return mean of batch

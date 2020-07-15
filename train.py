@@ -128,7 +128,8 @@ class TrainContext:
         y_hat = self.ctx.net(X).squeeze(1)
 
         # Accuracy metric
-        print('Accuracy: {}'.format(utils.jaccard(y_hat, y)))
+        acc = utils.jaccard(y_hat, y)
+        print('Accuracy: {}'.format(acc))
 
         # Loss metrics
         l = self.criterion(y_hat, y)
@@ -143,6 +144,7 @@ class TrainContext:
             self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_iter)
             self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_iter)
 
+        self.writer.add_scalar('loss/accuracy', float(acc), self.global_iter)
         self.writer.add_scalar('loss/total_loss', float(l), self.global_iter)
         self.writer.add_images('masks/0_base', X[:, 0:3, :, :], self.global_iter)
         y_us = y.unsqueeze(1)

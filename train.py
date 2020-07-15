@@ -94,7 +94,6 @@ class TrainContext:
             train_loss_epoch += batch_loss
             t.update(1)
             t.set_postfix({'batchloss': batch_loss})
-
         train_loss_epoch /= batch_count
         t.close()
 
@@ -107,11 +106,8 @@ class TrainContext:
             for X_test, y_test in test_iter:
                 X_test = X_test.float().to(self.ctx.device)
                 y_test = y_test.float().to(self.ctx.device)
-                #print('X: {}'.format(X_test.size()))
-                #print('y: {}'.format(y_test.size()))
                 y_test_hat = self.ctx.net(X_test).squeeze(1)
-                #print('y_hat: {}'.format(y_test_hat.size()))
-                b_l = self.criterion(y_test_hat, y_test)[0] + self.criterion(y_test_hat, y_test)[1]
+                b_l = self.criterion(y_test_hat, y_test)
                 test_loss_epoch += b_l.item()
             test_loss_epoch /= len(test_iter)
 
@@ -135,10 +131,7 @@ class TrainContext:
         print('Accuracy: {}'.format(utils.jaccard(y_hat, y)))
 
         # Loss metrics
-        bce = self.criterion(y_hat, y)[0]
-        dice = self.criterion(y_hat, y)[1]
-        l = bce + dice
-        #   print('Accuracy: {}'.format(dice))
+        l = self.criterion(y_hat, y)
 
         self.optimizer.zero_grad()
         l.backward()

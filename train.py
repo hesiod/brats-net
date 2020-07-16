@@ -168,10 +168,7 @@ class TrainContext:
 # %%
 
 if __name__ == '__main__':
-
-    dctx = model.brats_dataset.DataSplitter()
-
-
+    dctx = model.brats_dataset.DataSplitter('brats_training.hdf5')
     # %%
 
     # Identifier for this group of runs

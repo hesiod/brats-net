@@ -7,14 +7,15 @@ import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 import os
 from tqdm import tqdm, trange
+from pathlib import Path
+import sys
 
 # %%
 import model.brats_dataset
 import model.unet
 import model.utils
 import model.loss
-
-
+import model.kfold
 
 # %%
 
@@ -77,6 +78,7 @@ class TrainContext:
         self.writer.close()
 
     def checkpoint(self):
+        Path("checkpoints").mkdir(parents=True, exist_ok=True)
         torch.save(self.ctx.net.state_dict(), 'checkpoints/checkpoint_{}_{}.pt'.format(self.experiment_name, self.ctx.run_iter))
 
     def run_epoch(self, epoch):
@@ -152,43 +154,86 @@ class TrainContext:
 
         return float(l)
 
+    def run_test(self, X, y):
+        self.ctx.net.eval()
+        X = X.float().to(self.ctx.device)
+        y = y.float().to(self.ctx.device)
+        y_hat = self.ctx.net(X)
 
-# %%
+        # May change loss to accuracy
+        return  self.criterion(y_hat, y)
 
-dctx = model.brats_dataset.DataSplitter()
+if __name__ == '__main__':
+    # %%
+    if torch.cuda.is_available():
+        torch.cuda.init()
+        print("Is Cuda initialized:", torch.cuda.is_initialized())
 
+    dctx = model.brats_dataset.DataSplitter()
 
-# %%
+    # %%
 
-# Identifier for this group of runs
-meta_name = 'brats4'
-batch_size = 32
-num_workers = 6
-num_epochs = 50
-lr = 0.0001
-should_check = False
+    # Identifier for this group of runs
+    meta_name = 'brats4'
+    batch_size = 12
+    num_workers = 6
+    num_epochs = 50
+    lr = 0.0001
+    should_check = False
 
-# %%
+    # %%
 
-ctx = Context('checkpoint_sd.pt')
+    ctx = Context()
 
-if should_check:
-    # Check whether layer inputs/outputs dimensions are correct
-    # by conducting a test run
-    ctx.check_topology()
+    if should_check:
+        # Check whether layer inputs/outputs dimensions are correct
+        # by conducting a test run
+        ctx.check_topology()
 
-# %%
+    # %%
 
-pos_weight = torch.Tensor([5.0]).to(ctx.device)
-criterion = model.loss.Loss(pos_weight)
+    pos_weight = torch.Tensor([5.0]).to(ctx.device)
+    criterion = model.loss.Loss(pos_weight)
 
-tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
+    tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
 
-# %%
+    # %%
+    # Currently expecting X (Image), y (labels) tensors for the kfold 
+    # Not finished yet
+    do_kfold = False
+    if do_kfold:
+        size = 100
+        KFold = model.KFold()
+        best_result = sys.maxsize
+        best_split = []
+        for train_idx, test_idx in KFold.k_folds(size*0.10, size):
+            tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
+            # split into test and train
+            train_images = []
+            train_labels = []
+            test_images = []
+            test_labels = []
+            
+            result_train = tctx.run_batch(0, train_images, train_labels)
+            result_test = tctx.run_test(test_images, test_labels)
 
-tctx.run(num_epochs)
+            if result_test < best_result:
+                best_result = result_test
+                best_split = [train_idx, test_idx]
+        
+        # split again in test and train
+        train_images = []
+        train_labels = []
+        test_images = []
+        test_labels = []
 
-# %%
+        # todo save as HDF5
+            
+    # %%
 
-ctx.export_onnx("net5.onnx")
+    tctx.run(num_epochs)
+
+    # %%
+
+    ctx.export_onnx("net5.onnx")
 

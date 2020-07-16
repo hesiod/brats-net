@@ -5,6 +5,7 @@
 # Archives, Data
 *.tar
 Task01_BrainTumour
+runs
 *.DS_Store
 # Networks
 *.onnx

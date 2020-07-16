@@ -4,9 +4,11 @@
 
 # Archives, Data
 *.tar
-Task01_BrainTumour
 runs
+Task01_BrainTumour
+dataset_BRATS.hdf5
 *.DS_Store
 # Networks
 *.onnx
 *.pt
+*.hdf5

@@ -53,10 +53,10 @@ class Up(nn.Module):
 
 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, input_channels=4):
         super(Net, self).__init__()
 
-        self.input_channels = 4
+        self.input_channels = input_channels
 
         base_size2 = 6
         base_size = 1 << base_size2

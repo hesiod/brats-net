@@ -2,6 +2,8 @@ import numpy as np
 
 __all__ = ['KFold']
 
+# https://github.com/alejandrodebus/Pytorch-Utils
+
 class KFold:
     def __init__(self):
         super(KFold, self).__init__()

@@ -7,26 +7,25 @@ class KFold:
         super(KFold, self).__init__()
         pass
 
-    def partitions(self, amount_patients, k):
+    def partitions(self, length, k):
         '''
         Distribution of the folds
         Args:
-            amount_patients: number of patients
+            length: length of the dataset
             k: folds number
         '''
         n_partitions = np.ones(k) * int(amount_patients/k)
         n_partitions[0:(amount_patients % k)] += 1
         return n_partitions
 
-    def get_indices(self, n_splits = 3, length = 0):
+    def get_indices(self, n_splits, length):
         '''
         Indices of the set test
         Args:
             n_splits: folds number
-            amount_patients: number of patients
-            frames: length of the sequence of each patient
+            length: length of the dataset
         '''
-        l = self.partitions(self, amount_patients, n_splits)
+        l = self.partitions(self, length, n_splits)
         fold_sizes = l * frames
         indices = np.arange(length).astype(int)
         current = 0
@@ -36,13 +35,12 @@ class KFold:
             current = stop
             yield(indices[int(start):int(stop)])
 
-    def k_folds(self, n_splits = 3, length):
+    def k_folds(self, n_splits, length):
         '''
         Generates folds for cross validation
         Args:
             n_splits: folds number
-            amount_patients: number of patients
-            frames: length of the sequence of each patient
+            length: length of the dataset
         '''
         indices = np.arange(length).astype(int)
         for test_idx in self.get_indices(self, n_splits, length):

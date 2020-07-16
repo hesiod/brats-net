@@ -156,12 +156,13 @@ class TrainContext:
 
     def run_test(self, X, y):
         self.ctx.net.eval()
-        X = X.float().to(self.ctx.device)
-        y = y.float().to(self.ctx.device)
-        y_hat = self.ctx.net(X)
+        with torch.no_grad():
+            X = X.float().to(self.ctx.device)
+            y = y.float().to(self.ctx.device)
+            y_hat = self.ctx.net(X)
 
-        # May change loss to accuracy
-        return  self.criterion(y_hat, y)
+            # May change loss to accuracy
+            return self.criterion(y_hat, y)
 
 if __name__ == '__main__':
     # %%

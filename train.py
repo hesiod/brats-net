@@ -9,6 +9,7 @@ import os
 from tqdm import tqdm, trange
 from pathlib import Path
 import sys
+import json
 
 # %%
 import model.brats_dataset
@@ -166,6 +167,27 @@ class TrainContext:
 
         return float(l)
 
+    def run_train(self, X, y):
+        self.ctx.net.train()
+
+        X = X.float().to(self.ctx.device)
+        y = y.float().to(self.ctx.device)
+        y_hat = self.ctx.net(X).squeeze(1)
+
+        # Accuracy metric
+        acc = utils.jaccard(y_hat, y)
+        #print('Accuracy: {}'.format(acc))
+
+        # Loss metrics
+        l = self.criterion(y_hat, y)
+
+        self.optimizer.zero_grad()
+        l.backward()
+        nn.utils.clip_grad_value_(self.ctx.net.parameters(), 0.1)
+        self.optimizer.step()
+
+        return acc
+
     def run_test(self, X, y):
         self.ctx.net.eval()
         with torch.no_grad():
@@ -212,29 +234,46 @@ if __name__ == '__main__':
     do_kfold = False
     if do_kfold:
         size = 100
-        KFold = model.KFold()
-        best_result = sys.maxsize
+        KFold = model.kfold.KFold()
+        best_result = 0
         best_split = []
+        dataset = model.brats_dataset.BRATS("brats_training.hdf5")
+        amount = 1
         for train_idx, test_idx in KFold.k_folds(size*0.10, size):
+            ctx = Context()
             tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
-            # split into test and train
-            train_images = []
-            train_labels = []
-            test_images = []
-            test_labels = []
-            
-            result_train = tctx.run_batch(0, train_images, train_labels)
-            result_test = tctx.run_test(test_images, test_labels)
+            train_dataset = torch.utils.data.Subset(dataset, train_idx)
+            test_dataset = torch.utils.data.Subset(dataset, test_idx)
 
-            if result_test < best_result:
+            train_data = td.DataLoader(train_dataset, batch_size, shuffle=True, num_workers=num_workers)
+            test_data = td.DataLoader(test_dataset, batch_size, shuffle=True, num_workers=num_workers)
+            
+            for X, y in train_data:
+                result_train += tctx.run_train(X, y)
+            result_train = result_train / len(train_data)
+
+            for X, y in test_data:
+                result_test += tctx.run_test(X, y)
+            result_test = result_test / len(test_data)
+
+            print('Fold {}/{}, train acc {}, test acc {}'.format(amount, int(size/0.10), result_train, result_test))
+            if result_test > best_result:
                 best_result = result_test
                 best_split = [train_idx, test_idx]
+            
+            amount += 1
         
-        # split again in test and train
-        train_images = []
-        train_labels = []
-        test_images = []
-        test_labels = []
+        #train_dataset = torch.utils.data.Subset(dataset, best_split[0])
+        #test_dataset = torch.utils.data.Subset(dataset, best_split[1])
+        export_data = {
+            "train": best_split[0],
+            "test": best_split[1]
+        }
+
+        with open('indices.json', 'w') as out:
+            json.dump(export_data, out)
+
+
     
     # %%
 

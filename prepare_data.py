@@ -110,7 +110,7 @@ class DataPrep():
 
 
 if __name__ == '__main__':
-    if sys.argv[1] is not None:
+    if len(sys.argv) > 1 and sys.argv[1] is not None:
         data_dir = sys.argv[1]
     else:
         data_dir = 'Task01_BrainTumour'

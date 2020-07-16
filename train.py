@@ -109,7 +109,7 @@ class TrainContext:
                 y_test = y_test.float().to(self.ctx.device)
                 y_test_hat = self.ctx.net(X_test).squeeze(1)
                 b_l = self.criterion(y_test_hat, y_test)
-                test_acc_epoch = utils.jaccard(y_test_hat, y_test)
+                test_acc_epoch += utils.jaccard(y_test_hat, y_test)
                 test_loss_epoch += b_l.item()
             test_acc_epoch /= len(test_iter)
             test_loss_epoch /= len(test_iter)

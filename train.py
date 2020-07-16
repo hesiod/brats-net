@@ -129,8 +129,8 @@ class TrainContext:
         # Training
         t = tqdm(desc='batch', total=len(train_iter), position=1, leave=False)
         train_loss_epoch = 0.0
-        for i, (X, y) in enumerate(train_iter):
-            batch_loss = self.run_batch(i, X, y)
+        for X, y in train_iter:
+            batch_loss = self.run_batch(X, y)
             train_loss_epoch += batch_loss
             t.update(1)
             t.set_postfix({'batchloss': batch_loss})
@@ -166,7 +166,7 @@ class TrainContext:
         return train_loss_epoch, test_loss_epoch
 
 
-    def run_batch(self, i, X, y):
+    def run_batch(self, X, y):
         self.ctx.global_iter += 1
         self.ctx.net.train()
 

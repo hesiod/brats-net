@@ -16,8 +16,8 @@ class KFold:
             length: length of the dataset
             k: folds number
         '''
-        n_partitions = np.ones(k) * int(amount_patients/k)
-        n_partitions[0:(amount_patients % k)] += 1
+        n_partitions = np.ones(k) * int(length/k)
+        n_partitions[0:(length % k)] += 1
         return n_partitions
 
     def get_indices(self, n_splits, length):
@@ -28,7 +28,7 @@ class KFold:
             length: length of the dataset
         '''
         l = self.partitions(self, length, n_splits)
-        fold_sizes = l * frames
+        fold_sizes = l * length
         indices = np.arange(length).astype(int)
         current = 0
         for fold_size in fold_sizes:

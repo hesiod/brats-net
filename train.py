@@ -102,15 +102,19 @@ class TrainContext:
         # Evaluating
         self.ctx.net.eval()
         test_loss_epoch = 0.0
+        test_acc_epoch = 0.0
         with torch.no_grad():
             for X_test, y_test in test_iter:
                 X_test = X_test.float().to(self.ctx.device)
                 y_test = y_test.float().to(self.ctx.device)
                 y_test_hat = self.ctx.net(X_test).squeeze(1)
                 b_l = self.criterion(y_test_hat, y_test)
+                test_acc_epoch = utils.jaccard(y_test_hat, y_test)
                 test_loss_epoch += b_l.item()
+            test_acc_epoch /= len(test_iter)
             test_loss_epoch /= len(test_iter)
 
+        self.writer.add_scalar('accuracy/test_acc', test_acc_epoch, self.global_iter)
         self.writer.add_scalar('loss/test', test_loss_epoch, self.global_iter)
         self.writer.flush()
 
@@ -129,7 +133,7 @@ class TrainContext:
 
         # Accuracy metric
         acc = utils.jaccard(y_hat, y)
-        print('Accuracy: {}'.format(acc))
+        #print('Accuracy: {}'.format(acc))
 
         # Loss metrics
         l = self.criterion(y_hat, y)
@@ -144,7 +148,7 @@ class TrainContext:
             self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_iter)
             self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_iter)
 
-        self.writer.add_scalar('loss/accuracy', float(acc), self.global_iter)
+        self.writer.add_scalar('accuracy/train_acc', float(acc), self.global_iter)
         self.writer.add_scalar('loss/total_loss', float(l), self.global_iter)
         self.writer.add_images('masks/0_base', X[:, 0:3, :, :], self.global_iter)
         y_us = y.unsqueeze(1)

@@ -11,7 +11,7 @@ from tqdm import tqdm, trange
 # %%
 import model.brats_dataset
 import model.unet
-import model.utils
+import model.utils as utils
 import model.loss
 
 
@@ -86,6 +86,7 @@ class TrainContext:
         
         batch_count = len(train_iter)
 
+        # Training
         t = tqdm(desc='batch', total=len(train_iter), position=1)
         train_loss_epoch = 0.0
         for i, (X, y) in enumerate(train_iter):
@@ -98,17 +99,22 @@ class TrainContext:
 
         self.writer.add_scalar('loss/train', train_loss_epoch, self.global_iter)
 
+        # Evaluating
         self.ctx.net.eval()
         test_loss_epoch = 0.0
+        test_acc_epoch = 0.0
         with torch.no_grad():
             for X_test, y_test in test_iter:
                 X_test = X_test.float().to(self.ctx.device)
                 y_test = y_test.float().to(self.ctx.device)
                 y_test_hat = self.ctx.net(X_test).squeeze(1)
                 b_l = self.criterion(y_test_hat, y_test)
+                test_acc_epoch = utils.jaccard(y_test_hat, y_test)
                 test_loss_epoch += b_l.item()
+            test_acc_epoch /= len(test_iter)
             test_loss_epoch /= len(test_iter)
 
+        self.writer.add_scalar('accuracy/test_acc', test_acc_epoch, self.global_iter)
         self.writer.add_scalar('loss/test', test_loss_epoch, self.global_iter)
         self.writer.flush()
 
@@ -125,6 +131,11 @@ class TrainContext:
         y = y.float().to(self.ctx.device)
         y_hat = self.ctx.net(X).squeeze(1)
 
+        # Accuracy metric
+        acc = utils.jaccard(y_hat, y)
+        #print('Accuracy: {}'.format(acc))
+
+        # Loss metrics
         l = self.criterion(y_hat, y)
 
         self.optimizer.zero_grad()
@@ -137,6 +148,7 @@ class TrainContext:
             self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.global_iter)
             self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.global_iter)
 
+        self.writer.add_scalar('accuracy/train_acc', float(acc), self.global_iter)
         self.writer.add_scalar('loss/total_loss', float(l), self.global_iter)
         self.writer.add_images('masks/0_base', X[:, 0:3, :, :], self.global_iter)
         y_us = y.unsqueeze(1)
@@ -155,40 +167,39 @@ class TrainContext:
 
 # %%
 
-dctx = model.brats_dataset.DataSplitter('brats_training.hdf5')
+if __name__ == '__main__':
+    dctx = model.brats_dataset.DataSplitter('brats_training.hdf5')
+    # %%
 
+    # Identifier for this group of runs
+    meta_name = 'brats4'
+    batch_size = 4
+    num_workers = 4
+    num_epochs = 50
+    lr = 0.0001
+    should_check = False
 
-# %%
+    # %%
 
-# Identifier for this group of runs
-meta_name = 'brats4'
-batch_size = 32
-num_workers = 6
-num_epochs = 50
-lr = 0.0001
-should_check = False
+    ctx = Context() #'checkpoint_sd.pt'
 
-# %%
+    if should_check:
+        # Check whether layer inputs/outputs dimensions are correct
+        # by conducting a test run
+        ctx.check_topology()
 
-ctx = Context('checkpoint_sd.pt')
+    # %%
 
-if should_check:
-    # Check whether layer inputs/outputs dimensions are correct
-    # by conducting a test run
-    ctx.check_topology()
+    pos_weight = torch.Tensor([5.0]).to(ctx.device)
+    criterion = model.loss.Loss(pos_weight)
 
-# %%
+    tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
 
-pos_weight = torch.Tensor([5.0]).to(ctx.device)
-criterion = model.loss.Loss(pos_weight)
+    # %%
 
-tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
+    tctx.run(num_epochs)
 
-# %%
+    # %%
 
-tctx.run(num_epochs)
-
-# %%
-
-ctx.export_onnx("net5.onnx")
+    ctx.export_onnx("net5.onnx")
 

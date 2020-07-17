@@ -25,6 +25,28 @@ class Context:
         self.params = params
 
         self.net = model.unet.Net()
+
+        if params['optimizer'] == 'AdamW':
+            self.optimizer = torch.optim.AdamW(
+                self.net.parameters(),
+                lr=self.params['lr'],
+                weight_decay=1e-2
+            )
+        elif params['optimizer'] == 'SGD':
+            self.optimizer = torch.optim.SGD(
+                self.net.parameters(),
+                lr=self.params['lr'],
+                weight_decay=1e-7,
+                momentum=params['sgd_momentum']
+            )
+        else:
+            print('unknown optimizer "{}"'.format(params['optimizer']))
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer,
+            'min',
+            patience=params['lr_scheduler_patience']
+        )
+
         if checkpoint_filename:
             checkpoint = torch.load(checkpoint_filename)
             self.net.load_state_dict(checkpoint['model'])
@@ -33,17 +55,6 @@ class Context:
             self.global_iter = checkpoint['global_iter']
         else:
             self.net.apply(model.unet.init_weights)
-            self.optimizer = torch.optim.SGD(
-                self.net.parameters(),
-                lr=self.params['lr'],
-                weight_decay=1e-7,
-                momentum=0.8
-            )
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer,
-                'min',
-                patience=2
-            )
             self.global_iter = 0
             self.save_checkpoint()
 
@@ -230,6 +241,9 @@ if __name__ == '__main__':
         'num_workers' : 2,
         'num_epochs' : 50,
         'lr' : 1e-3,
+        'optimizer': 'AdamW',
+        'sgd_momentum': 0.95,
+        'lr_scheduler_patience': 4,
     }
 
     should_check = True

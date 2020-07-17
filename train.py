@@ -127,6 +127,7 @@ class TrainContext:
         batch_count = len(train_iter)
 
         # Training
+        self.ctx.net.train()
         t = tqdm(desc='batch', total=len(train_iter), position=1, leave=False)
         train_loss_epoch = 0.0
         for X, y in train_iter:
@@ -168,7 +169,6 @@ class TrainContext:
 
     def run_batch(self, X, y):
         self.ctx.global_iter += 1
-        self.ctx.net.train()
 
         X = X.float().to(self.ctx.device)
         y = y.float().to(self.ctx.device)

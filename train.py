@@ -196,9 +196,9 @@ class TrainContext:
             self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.ctx.global_iter)
             self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.ctx.global_iter)
 
-        self.writer.add_scalar('accuracy/train_acc', float(acc), self.ctx.global_iter)
-        self.writer.add_scalar('loss/total_loss', float(l), self.ctx.global_iter)
-        self.writer.add_images('masks/0_base', X[:, 0:3, :, :], self.ctx.global_iter)
+        self.writer.add_scalar('accuracy/train_acc', acc.item(), self.ctx.global_iter)
+        self.writer.add_scalar('loss/total_loss', l.item(), self.ctx.global_iter)
+        self.writer.add_images('masks/0_base', X, self.ctx.global_iter)
         y_us = y.unsqueeze(1)
         y_hat_us = y_hat.unsqueeze(1)
         y_hat_us_sig = torch.sigmoid(y_hat_us) > 0.5
@@ -210,7 +210,7 @@ class TrainContext:
 
         self.writer.flush()
 
-        return float(l)
+        return l.item()
 
 
 # %%

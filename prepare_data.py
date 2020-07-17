@@ -48,6 +48,24 @@ class DataPrep():
         print('per-channel mean: {}'.format(self.channel_mean))
         print('per-channel standard deviation: {}'.format(self.channel_stddev))
 
+    def calc_label_weights(self):
+        files = self.dataset_info.get('training')
+        file_count = len(files)
+        weights = np.empty(shape=(file_count, 4))
+
+        for fidx, f in enumerate(tqdm(files, desc='scan', position=0)):
+            label_fn = os.path.join(self.data_dir, f.get('label'))
+            label_img = nib.load(label_fn)
+            label_alldata = np.array(label_img.dataobj)
+
+            bc = np.bincount(label_alldata.reshape(-1), minlength=4)
+            weights[fidx, :] = bc
+            label_img.uncache()
+
+        self.class_weights = weights.sum(axis=0, dtype=np.float64)
+
+        print('class weights: {}'.format(self.class_weights))
+
     def create_hdf(self, hdf_filename=None):
         if self.channel_mean is None:
             self.channel_mean =   np.array([460.91295331, 607.31359224, 604.41613027, 481.6058893])
@@ -115,5 +133,6 @@ if __name__ == '__main__':
     else:
         data_dir = 'Task01_BrainTumour'
     prep = DataPrep(data_dir)
+    prep.calc_label_weights()
     prep.calc_means()
     prep.create_hdf()

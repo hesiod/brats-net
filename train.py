@@ -100,10 +100,15 @@ class TrainContext:
 
         self.brats_train_perepoch = self.data.split_data(num_epochs)
 
-        for epoch in trange(num_epochs-1, desc='epoch', position=0):
+        t = trange(num_epochs-1, desc='epoch', position=0)
+        for epoch in t:
             train_loss_epoch, test_loss_epoch = self.run_epoch(epoch)
-            print('epoch {}/{}, train loss {}, test loss {}'.format(epoch+1,
-                num_epochs, train_loss_epoch, test_loss_epoch))
+            t.write('epoch {}/{}, train loss {}, test loss {}'.format(
+                epoch + 1,
+                num_epochs,
+                train_loss_epoch,
+                test_loss_epoch
+            ))
 
         self.writer.close()
 

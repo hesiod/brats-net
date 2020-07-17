@@ -163,7 +163,7 @@ class TrainContext:
 
         self.writer.add_scalar('accuracy/test_acc', test_acc_epoch, self.ctx.global_iter)
         self.writer.add_scalar('loss/test', test_loss_epoch, self.ctx.global_iter)
-        for idx, group in enumerate(self.optimizer.param_groups):
+        for idx, group in enumerate(self.ctx.optimizer.param_groups):
             self.writer.add_scalar('meta/lr/group_{}'.format(idx + 1), group['lr'], self.ctx.global_iter)
         self.writer.flush()
 

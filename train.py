@@ -8,6 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 from tqdm import tqdm, trange
 import argparse
+import datetime
 
 # %%
 import model.brats_dataset
@@ -29,7 +30,6 @@ class Context:
             self.net.load_state_dict(checkpoint['model'])
             self.optimizer.load_state_dict(checkpoint['optimizer'])
             self.scheduler.load_state_dict(checkpoint['scheduler'])
-            self.run_iter = checkpoint['run_iter'] + 1
             self.global_iter = checkpoint['global_iter']
         else:
             self.net.apply(model.unet.init_weights)
@@ -44,14 +44,11 @@ class Context:
                 'min',
                 patience=2
             )
-            self.run_iter = 0
             self.global_iter = 0
             self.save_checkpoint()
 
         self.device = model.utils.try_gpu()
         print('Using device {}'.format(self.device))
-
-        self.run_iter = 0
 
         self.model_shape = (1, 4, 240, 240)
 
@@ -64,18 +61,22 @@ class Context:
         dummy_input = torch.empty(size=self.model_shape)
         torch.onnx.export(self.net, dummy_input, filename, verbose=True)
 
+    def checkpoint_path(self):
+        checkpoint_path = os.path.join(
+            'checkpoints',
+            self.params['meta_name'],
+            'checkpoint_{}.pt'.format(datetime.datetime.now().isoformat())
+        )
+        return checkpoint_path
+
     def save_checkpoint(self):
-        fn = 'checkpoint_{}_{}.pt'.format(self.params['meta_name'], self.run_iter)
-        print('Writing checkpoint {}'.format(fn))
         state_dict = {
             'model': self.net.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict(),
-            'run_iter': self.run_iter,
             'global_iter': self.global_iter,
             }
-        torch.save(state_dict, os.path.join('checkpoints', fn))
-        print('done')
+        torch.save(state_dict, self.checkpoint_path())
 
 class TrainContext:
     def __init__(self, context, data_context, criterion):
@@ -83,12 +84,12 @@ class TrainContext:
         self.data = data_context
         self.criterion = criterion
 
-    def run(self, num_epochs):
-        self.ctx.run_iter += 1
-        run_name = 'run_{}_{}_{}'.format(self.ctx.params['meta_name'], self.ctx.params['lr'], self.ctx.run_iter)
-
-        print('Commencing {}'.format(run_name))
-        self.writer = SummaryWriter(os.path.join('runs', run_name))
+        log_path = os.path.join(
+            'runs',
+            self.ctx.params['meta_name'],
+            'run_{}'.format(datetime.datetime.now().isoformat()))
+        print('Writing Tensorboard logs to {}'.format(log_path))
+        self.writer = SummaryWriter(log_path)
 
         print('Writing graph')
         dummy_input = torch.empty(size=self.ctx.model_shape, dtype=torch.float32)
@@ -96,6 +97,7 @@ class TrainContext:
         del dummy_input
         print('done')
 
+    def run(self, num_epochs):
         self.ctx.net.to(self.ctx.device)
 
         self.brats_train_perepoch = self.data.split_data(num_epochs)
@@ -109,8 +111,6 @@ class TrainContext:
                 train_loss_epoch,
                 test_loss_epoch
             ))
-
-        self.writer.close()
 
 
     def run_epoch(self, epoch):
@@ -220,7 +220,6 @@ if __name__ == '__main__':
     parser.add_argument("dataset", help="file name of HDF5 dataset")
     parser.add_argument("--checkpoint", help="checkpoint file")
     args = parser.parse_args()
-    print(args)
 
     dctx = model.brats_dataset.DataSplitter(args.dataset)
 

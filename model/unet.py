@@ -16,10 +16,10 @@ class Down(nn.Module):
         self.down = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(size2m1, size2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(size2),
+            nn.BatchNorm2d(size2, track_running_stats=False),
             nn.ReLU(),
             nn.Conv2d(size2, size2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(size2),
+            nn.BatchNorm2d(size2, track_running_stats=False),
             nn.ReLU())
 
     def forward(self, X):
@@ -39,10 +39,10 @@ class Up(nn.Module):
         self.up = nn.ConvTranspose2d(size2p1, size2, kernel_size=2, stride=2)
         self.conv = nn.Sequential(
             nn.Conv2d(size2p1, size2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(size2),
+            nn.BatchNorm2d(size2, track_running_stats=False),
             nn.ReLU(),
             nn.Conv2d(size2, size2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(size2),
+            nn.BatchNorm2d(size2, track_running_stats=False),
             nn.ReLU())
 
     def forward(self, X, Z):
@@ -62,10 +62,10 @@ class Net(nn.Module):
         base_size = 1 << base_size2
         self.down1 = nn.Sequential(
             nn.Conv2d(self.input_channels, base_size, kernel_size=3, padding=1),
-            nn.BatchNorm2d(base_size),
+            nn.BatchNorm2d(base_size, track_running_stats=False),
             nn.ReLU(),
             nn.Conv2d(base_size, base_size, kernel_size=3, padding=1),
-            nn.BatchNorm2d(base_size),
+            nn.BatchNorm2d(base_size, track_running_stats=False),
             nn.ReLU())
         # 64  -> 128
         self.down2 = Down(7)

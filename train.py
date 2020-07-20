@@ -73,11 +73,16 @@ class Context:
         torch.onnx.export(self.net, dummy_input, filename, verbose=True)
 
     def checkpoint_path(self):
-        checkpoint_path = os.path.join(
+        checkpoint_dir = os.path.join(
             'checkpoints',
             self.params['meta_name'],
+        )
+        checkpoint_path = os.path.join(
+            checkpoint_dir,
             'checkpoint_{}.pt'.format(datetime.datetime.now().isoformat())
         )
+        if not os.path.exists(checkpoint_dir):
+            os.mkdir(checkpoint_dir)
         return checkpoint_path
 
     def save_checkpoint(self):
@@ -95,10 +100,16 @@ class TrainContext:
         self.data = data_context
         self.criterion = criterion
 
-        log_path = os.path.join(
+        log_dir = os.path.join(
             'runs',
             self.ctx.params['meta_name'],
-            'run_{}'.format(datetime.datetime.now().isoformat()))
+        )
+        log_path = os.path.join(
+            log_dir,
+            'run_{}'.format(datetime.datetime.now().isoformat()),
+        )
+        if not os.path.exists(log_dir):
+            os.mkdir(log_dir)
         print('Writing Tensorboard logs to {}'.format(log_path))
         self.writer = SummaryWriter(log_path)
 

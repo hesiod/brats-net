@@ -7,14 +7,16 @@ import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 import os
 from tqdm import tqdm, trange
+from pathlib import Path
+import sys
+import json
 
 # %%
 import model.brats_dataset
 import model.unet
 import model.utils as utils
 import model.loss
-
-
+import model.kfold
 
 # %%
 
@@ -49,7 +51,7 @@ class TrainContext:
 
         self.criterion = criterion
         self.batch_size = batch_size
-
+        self.ctx.net.to(context.device)
         self.optimizer = torch.optim.SGD(self.ctx.net.parameters(), lr=lr)
         #optimizer = torch.optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
         #self.scheduler = ReduceLROnPlateau(self.optimizer, 'min')
@@ -77,6 +79,7 @@ class TrainContext:
         self.writer.close()
 
     def checkpoint(self):
+        Path("checkpoints").mkdir(parents=True, exist_ok=True)
         torch.save(self.ctx.net.state_dict(), 'checkpoints/checkpoint_{}_{}.pt'.format(self.experiment_name, self.ctx.run_iter))
 
     def run_epoch(self, epoch):
@@ -164,11 +167,41 @@ class TrainContext:
 
         return float(l)
 
+    def run_train(self, X, y):
+        self.ctx.net.train()
+
+        X = X.float().to(self.ctx.device)
+        y = y.float().to(self.ctx.device)
+        y_hat = self.ctx.net(X).squeeze(1)
+
+        # Accuracy metric
+        acc = utils.jaccard(y_hat, y)
+        #print('Accuracy: {}'.format(acc))
+
+        # Loss metrics
+        l = self.criterion(y_hat, y)
+
+        self.optimizer.zero_grad()
+        l.backward()
+        nn.utils.clip_grad_value_(self.ctx.net.parameters(), 0.1)
+        self.optimizer.step()
+
+        return acc
+
+    def run_test(self, X, y):
+        self.ctx.net.eval()
+        with torch.no_grad():
+            X = X.float().to(self.ctx.device)
+            y = y.float().to(self.ctx.device)
+            y_hat = self.ctx.net(X)
+
+            # May change loss to accuracy
+            return self.criterion(y_hat, y)
 
 # %%
 
 if __name__ == '__main__':
-    dctx = model.brats_dataset.DataSplitter('brats_training.hdf5')
+    dctx = model.brats_dataset.DataSplitter('dataset_BRATS.hdf5')
     # %%
 
     # Identifier for this group of runs
@@ -194,7 +227,55 @@ if __name__ == '__main__':
     criterion = model.loss.Loss(pos_weight)
 
     tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
+    
+    # %%
+    # Currently expecting X (Image), y (labels) tensors for the kfold 
+    # Not finished yet
+    do_kfold = True
+    if do_kfold:
+        KFold = model.kfold.KFold()
+        best_result = 0
+        best_split = []
+        dataset = model.brats_dataset.BRATS("./dataset_BRATS.hdf5")
+        size = len(dataset)
+        amount = 1
 
+        for train_idx, test_idx in KFold.k_folds(size*0.10, size):
+            ctx = Context()
+            tctx = TrainContext(ctx, dctx, criterion=criterion, lr=lr, batch_size=batch_size, experiment_name=meta_name)
+            train_dataset = torch.utils.data.Subset(dataset, train_idx)
+            test_dataset = torch.utils.data.Subset(dataset, test_idx)
+    
+            train_data = td.DataLoader(train_dataset, batch_size, shuffle=True, num_workers=num_workers)
+            test_data = td.DataLoader(test_dataset, batch_size, shuffle=True, num_workers=num_workers)
+
+            result_train = 0        
+            for X, y in train_data:
+                result_train += tctx.run_train(X, y)
+            result_train = result_train / len(train_data)
+
+            result_test = 0
+            for X, y in test_data:
+                result_test += tctx.run_test(X, y)
+            result_test = result_test / len(test_data)
+
+            print('Fold {}/{}, train acc {}, test acc {}'.format(amount, int(size/0.10), result_train, result_test))
+            if result_test > best_result:
+                best_result = result_test
+                best_split = [train_idx, test_idx]
+            
+            amount += 1
+
+        export_data = {
+            "train": best_split[0],
+            "test": best_split[1]
+        }
+
+        with open('indices.json', 'w') as out:
+            json.dump(export_data, out)
+
+
+    
     # %%
 
     tctx.run(num_epochs)

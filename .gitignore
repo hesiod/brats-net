@@ -11,3 +11,4 @@ dataset_BRATS.hdf5
 # Networks
 *.onnx
 *.pt
+*.hdf5

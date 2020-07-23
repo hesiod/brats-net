@@ -16,14 +16,13 @@ class Down(nn.Module):
         self.down = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(size2m1, size2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(size2),
+            nn.BatchNorm2d(size2, track_running_stats=False),
             nn.ReLU(),
             nn.Conv2d(size2, size2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(size2),
+            nn.BatchNorm2d(size2, track_running_stats=False),
             nn.ReLU())
 
     def forward(self, X):
-        # print('Xs = {}'.format(X.shape))
         return self.down(X)
 
 
@@ -34,47 +33,39 @@ class Up(nn.Module):
         assert(size > 2)
         assert(padding >= 0)
 
-        size2 = 1 << size  # 2^10 = 1024
-        size2m1 = 1 << (size - 1)  # 2^9 = 512
-        size2p1 = 1 << (size + 1)  # 2^11 = 2048
-
-        padding_top = padding // 2
-        padding_bottom = padding - padding_top
-        padding_left = padding // 2
-        padding_right = padding - padding_left
+        size2 = 1 << size
+        size2p1 = 1 << (size + 1)
 
         self.up = nn.ConvTranspose2d(size2p1, size2, kernel_size=2, stride=2)
-        self.pad = nn.ReflectionPad2d(padding=(padding_left, padding_right, padding_top, padding_bottom))
-        #self.up = nn.Sequential(
-        #    nn.ConvTranspose2d(size2p1, size2, kernel_size=2, stride=2),
-        #    nn.ReflectionPad2d(padding=(padding_left, padding_right, padding_top, padding_bottom)))
         self.conv = nn.Sequential(
-            nn.Conv2d(size2p1, size2, kernel_size=3),
-            nn.BatchNorm2d(size2),
+            nn.Conv2d(size2p1, size2, kernel_size=3, padding=1),
+            nn.BatchNorm2d(size2, track_running_stats=False),
             nn.ReLU(),
-            nn.Conv2d(size2, size2, kernel_size=3),
-            nn.BatchNorm2d(size2),
+            nn.Conv2d(size2, size2, kernel_size=3, padding=1),
+            nn.BatchNorm2d(size2, track_running_stats=False),
             nn.ReLU())
 
     def forward(self, X, Z):
-        X = self.pad(self.up(X))
+        X = self.up(X)
         X = torch.cat([X, Z], dim=1)
 
         return self.conv(X)
 
 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, input_channels=4):
         super(Net, self).__init__()
 
-        self.input_channels = 4
+        self.input_channels = input_channels
 
+        base_size2 = 6
+        base_size = 1 << base_size2
         self.down1 = nn.Sequential(
-            nn.Conv2d(self.input_channels, 64, kernel_size=3),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(self.input_channels, base_size, kernel_size=3, padding=1),
+            nn.BatchNorm2d(base_size, track_running_stats=False),
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(base_size, base_size, kernel_size=3, padding=1),
+            nn.BatchNorm2d(base_size, track_running_stats=False),
             nn.ReLU())
         # 64  -> 128
         self.down2 = Down(7)
@@ -85,15 +76,14 @@ class Net(nn.Module):
         # 512 -> 1024
         self.even5 = Down(10)
         # 1024 -> 512
-        self.up4 = Up(9, 1)
+        self.up4 = Up(9)
         # 512  -> 256
-        self.up3 = Up(8, 9)
+        self.up3 = Up(8)
         # 256  -> 128
-        self.up2 = Up(7, 8)
-        self.up1 = Up(6, 8)
+        self.up2 = Up(7)
+        self.up1 = Up(6)
         self.out = nn.Sequential(
-            nn.Conv2d(64, 1, kernel_size=1),
-            nn.ZeroPad2d(padding=(4, 4, 4, 4))
+            nn.Conv2d(base_size, 1, kernel_size=1)
         )
 
         downup = nn.Sequential(

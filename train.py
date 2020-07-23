@@ -41,11 +41,20 @@ class Context:
             )
         else:
             print('unknown optimizer "{}"'.format(params['optimizer']))
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer,
-            'min',
-            patience=params['lr_scheduler_patience']
-        )
+
+        if params['scheduler'] == 'ReduceLROnPlateau':
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer,
+                'min',
+                patience=params['lr_scheduler_patience']
+            )
+        elif params['scheduler'] == 'CosineAnnealingWarmRestarts':
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                self.optimizer,
+                T_0=50,
+            )
+        else:
+            print('unknown scheduler "{}"'.format(params['scheduler']))
 
         if checkpoint_filename:
             checkpoint = torch.load(checkpoint_filename)
@@ -157,9 +166,11 @@ class TrainContext:
         self.ctx.net.train()
         t = tqdm(desc='batch', total=len(train_iter), position=1, leave=False)
         train_loss_epoch = 0.0
-        for X, y in train_iter:
+        for i, (X, y) in enumerate(train_iter):
             batch_loss = self.run_batch(X, y)
             train_loss_epoch += batch_loss
+            if self.ctx.params['scheduler'] == 'CosineAnnealingWarmRestarts':
+                self.ctx.scheduler.step(epoch + i / len(train_iter))
             t.update(1)
             t.set_postfix({'batchloss': batch_loss})
         train_loss_epoch /= batch_count
@@ -181,7 +192,8 @@ class TrainContext:
                 test_loss_epoch += b_l.item()
             test_acc_epoch /= len(test_iter)
             test_loss_epoch /= len(test_iter)
-            self.ctx.scheduler.step(test_loss_epoch)
+            if self.ctx.params['scheduler'] == 'ReduceLROnPlateau':
+                self.ctx.scheduler.step(test_loss_epoch)
 
         self.writer.add_scalar('accuracy/test_acc', test_acc_epoch, self.ctx.global_iter)
         self.writer.add_scalar('loss/test', test_loss_epoch, self.ctx.global_iter)
@@ -255,6 +267,7 @@ if __name__ == '__main__':
         'optimizer': 'AdamW',
         'sgd_momentum': 0.95,
         'lr_scheduler_patience': 4,
+        'scheduler': 'CosineAnnealingWarmRestarts',
     }
 
     should_check = True

@@ -198,8 +198,6 @@ class TrainContext:
 
         self.writer.add_scalar('accuracy/test_acc', test_acc_epoch, self.ctx.global_iter)
         self.writer.add_scalar('loss/test', test_loss_epoch, self.ctx.global_iter)
-        for idx, group in enumerate(self.ctx.optimizer.param_groups):
-            self.writer.add_scalar('meta/lr/group_{}'.format(idx + 1), group['lr'], self.ctx.global_iter)
         self.writer.flush()
 
         self.ctx.save_checkpoint()
@@ -242,6 +240,9 @@ class TrainContext:
         self.writer.add_images('extra/raw', y_hat_us, self.ctx.global_iter)
         overlaid = torch.cat([y_hat_us_sig.float(), y_us, torch.zeros_like(y_us)], dim=1)
         self.writer.add_images('extra/overlaid', overlaid, self.ctx.global_iter)
+
+        for idx, group in enumerate(self.ctx.optimizer.param_groups):
+            self.writer.add_scalar('meta/lr/group_{}'.format(idx + 1), group['lr'], self.ctx.global_iter)
 
         self.writer.flush()
 

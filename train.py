@@ -9,6 +9,7 @@ import os
 from tqdm import tqdm, trange
 import argparse
 import datetime
+import json
 
 # %%
 import model.brats_dataset
@@ -30,13 +31,13 @@ class Context:
             self.optimizer = torch.optim.AdamW(
                 self.net.parameters(),
                 lr=self.params['lr'],
-                weight_decay=1e-2
+                weight_decay=params['adam_weight_decay']
             )
         elif params['optimizer'] == 'SGD':
             self.optimizer = torch.optim.SGD(
                 self.net.parameters(),
                 lr=self.params['lr'],
-                weight_decay=1e-7,
+                weight_decay=params['sgd_weight_decay'],
                 momentum=params['sgd_momentum']
             )
         else:
@@ -166,11 +167,12 @@ class TrainContext:
         self.ctx.net.train()
         t = tqdm(desc='batch', total=len(train_iter), position=1, leave=False)
         train_loss_epoch = 0.0
+        train_iter_count = len(train_iter)
         for i, (X, y) in enumerate(train_iter):
             batch_loss = self.run_batch(X, y)
             train_loss_epoch += batch_loss
             if self.ctx.params['scheduler'] == 'CosineAnnealingWarmRestarts':
-                self.ctx.scheduler.step(epoch + i / len(train_iter))
+                self.ctx.scheduler.step(epoch + i / train_iter_count)
             t.update(1)
             t.set_postfix({'batchloss': batch_loss})
         train_loss_epoch /= batch_count
@@ -221,7 +223,7 @@ class TrainContext:
 
         self.ctx.optimizer.zero_grad()
         l.backward()
-        nn.utils.clip_grad_value_(self.ctx.net.parameters(), 0.1)
+        nn.utils.clip_grad_value_(self.ctx.net.parameters(), params['gradient_clip_value'])
         self.ctx.optimizer.step()
 
         for tag, value in self.ctx.net.named_parameters():
@@ -255,22 +257,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset", help="file name of HDF5 dataset")
     parser.add_argument("--checkpoint", help="checkpoint file")
+    parser.add_argument("--params", help="hyperparameters", required=True)
     args = parser.parse_args()
 
     dctx = model.brats_dataset.DataSplitter(args.dataset)
 
-    params = {
-        # Identifier for this group of runs
-        'meta_name' : 'brats4',
-        'batch_size' : 2,
-        'num_workers' : 2,
-        'num_epochs' : 50,
-        'lr' : 1e-3,
-        'optimizer': 'AdamW',
-        'sgd_momentum': 0.95,
-        'lr_scheduler_patience': 4,
-        'scheduler': 'CosineAnnealingWarmRestarts',
-    }
+    with open(args.params, "r") as params_file:
+        params = json.load(params_file)
 
     should_check = True
 

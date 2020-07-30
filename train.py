@@ -16,7 +16,8 @@ import jsonschema
 import model.brats_dataset
 import model.unet
 import model.res_unet
-import model.utils as utils
+import model.utils
+import model.metrics
 import model.loss
 
 
@@ -111,6 +112,8 @@ class Context:
             'global_iter': self.global_iter,
             }
         torch.save(state_dict, self.checkpoint_path())
+
+# %%
 
 class TrainContext:
     def __init__(self, context, dataset, criterion):
@@ -217,7 +220,7 @@ class TrainContext:
                 y_test_hat = self.ctx.net(X_test).squeeze(1)
                 y_test_hat_sig = torch.sigmoid(y_test_hat) > 0.5
                 batch_loss = self.criterion(y_test_hat, y_test).item()
-                batch_acc = utils.jaccard(y_test_hat_sig, y_test)
+                batch_acc = model.metrics.jaccard(y_test_hat_sig, y_test)
                 test_loss_epoch += batch_loss
                 test_acc_epoch += batch_acc
                 t.set_postfix({
@@ -250,7 +253,7 @@ class TrainContext:
         y_hat_us_sig = torch.sigmoid(y_hat_us) # > 0.5
 
         # Accuracy metric
-        acc = utils.jaccard(y_hat_us_sig > 0.5, y_us)
+        acc = model.metrics.jaccard(y_hat_us_sig > 0.5, y_us)
 
         # Loss metrics
         l = self.criterion(y_hat, y)

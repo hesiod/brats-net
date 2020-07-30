@@ -1,6 +1,18 @@
 # Medical Image Segmentation: Brain Tumours
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hesiod/brats-net/blob/master/net.ipynb)
 
+## Project structure
+
+- `train.py`: Main training program
+- `prepare_data.py`: Data preprocessing and HDF5 generation script (see below)
+- `model`
+  - `brats_dataset.py`: `BRATS` dataset class that allows loading the HDF5 dataset
+  - `loss.py`: Loss functions
+  - `metrics.py`: Dice coefficient and Jaccard index as metrics
+  - `res_unet.py`: Residual variant U-Net
+  - `unet.py`: Classical, non-residual U-Net
+  - `utils.py`: Utility functions
+
 ## Preparing the dataset
 The training program `train.py` requires the original dataset from the
 [Medical Decathlon](http://medicaldecathlon.com/)
@@ -16,6 +28,10 @@ Medical Decathlon website.
 The script performs normalization of the channel data, culls empty slices and
 slices without labeled features and writes the remaining transformed
 slices into an HDF file.
+
+**Note**: Running the data preparation script
+can take up to multiple hours
+depending on system I/O performance.
 
 ## Training configuration
 Adapt the provided sample configuration file `params.sample.json`

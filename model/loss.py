@@ -1,24 +1,20 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-__all__ = ['Loss']
+import model.metrics
+
+__all__ = ['DiceLoss', 'Loss']
 
 
 class DiceLoss(nn.Module):
     def __init__(self):
         super(DiceLoss, self).__init__()
-        self.smooth = 1.
+        self.dice_coeff = model.metrics.DiceCoefficient()
 
     # https://github.com/pytorch/pytorch/issues/1249
     def forward(self, pred, target):
-        iflat = pred.view(-1)
-        tflat = target.view(-1)
-        intersection = (iflat * tflat).sum()
-
-        p = (2. * intersection + self.smooth)
-        q = (iflat.sum() + tflat.sum() + self.smooth)
-        return (-1)*(p/q)
+        dc = self.dice_coeff(pred, target)
+        return 1. - dc
 
 
 class Loss(nn.Module):

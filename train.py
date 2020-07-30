@@ -35,6 +35,10 @@ class Context:
         else:
             print('unknown model "{}"'.format(params['model']))
 
+        self.device = model.utils.try_gpu()
+        print('Using device {}'.format(self.device))
+        self.net.to(self.device)
+
         if params['optimizer'] == 'AdamW':
             self.optimizer = torch.optim.AdamW(
                 self.net.parameters(),
@@ -76,19 +80,16 @@ class Context:
             self.net.apply(model.unet.init_weights)
             self.global_iter = 0
 
-        self.device = model.utils.try_gpu()
-        print('Using device {}'.format(self.device))
-        self.net.to(self.device)
 
         self.model_shape = (1, params['input_channels'], 240, 240)
 
     def check_topology(self):
         with torch.no_grad():
-            dummy_input = torch.empty(size=self.model_shape, dtype=torch.float32)
+            dummy_input = torch.empty(size=self.model_shape, dtype=torch.float32).to(self.device)
             y = self.net(dummy_input)
 
     def export_onnx(self, filename):
-        dummy_input = torch.empty(size=self.model_shape)
+        dummy_input = torch.empty(size=self.model_shape).to(self.device)
         torch.onnx.export(self.net, dummy_input, filename, verbose=True)
 
     def checkpoint_path(self):
@@ -100,6 +101,8 @@ class Context:
             checkpoint_dir,
             'checkpoint_{}.pt'.format(datetime.datetime.now().isoformat())
         )
+        if not os.path.exists('checkpoints'):
+            os.mkdir('checkpoints')
         if not os.path.exists(checkpoint_dir):
             os.mkdir(checkpoint_dir)
         return checkpoint_path
@@ -136,19 +139,21 @@ class TrainContext:
             log_dir,
             'run_{}'.format(datetime.datetime.now().isoformat()),
         )
+        if not os.path.exists('runs'):
+            os.mkdir('runs')
         if not os.path.exists(log_dir):
             os.mkdir(log_dir)
         print('Writing Tensorboard logs to {}'.format(log_path))
         self.writer = SummaryWriter(log_path)
 
         print('Writing graph')
-        dummy_input = torch.empty(size=self.ctx.model_shape, dtype=torch.float32)
+        dummy_input = torch.empty(size=self.ctx.model_shape, dtype=torch.float32).to(self.ctx.device)
         self.writer.add_graph(self.ctx.net, dummy_input)
         del dummy_input
         print('done')
 
     def run(self, num_epochs):
-        t = trange(num_epochs-1, desc='epoch', position=0)
+        t = trange(num_epochs, desc='epoch', position=0)
         for epoch in t:
             train_loss_epoch, test_loss_epoch = self.run_epoch(epoch)
             t.write('epoch {}/{}, train loss {}, test loss {}'.format(

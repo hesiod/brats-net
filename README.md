@@ -1,8 +1,9 @@
 # Medical Image Segmentation: Brain Tumours
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hesiod/brats-net/blob/master/net.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hesiod/brats-net/blob/master/unet.ipynb)
 
 ## Project structure
 
+- **`unet.ipynb`**: Demo Jupyter notebook
 - `train.py`: Main training program
 - `prepare_data.py`: Data preprocessing and HDF5 generation script (see below)
 - `model`

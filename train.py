@@ -10,6 +10,8 @@ from tqdm import tqdm, trange
 from pathlib import Path
 import sys
 import json
+import time
+import pickle
 
 # %%
 import model.brats_dataset
@@ -19,6 +21,12 @@ import model.loss
 import model.kfold
 
 # %%
+
+class NDArrayEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, mx.nd.NDArray):
+            return obj.asnumpy().tolist()
+        return json.JSONEncoder.default(self, obj)
 
 class Context:
     def __init__(self, filename=None, criterion=None):
@@ -167,7 +175,7 @@ class TrainContext:
 
         return float(l)
 
-    def run_train(self, X, y):
+    def run_train(self, epoch, X, y):
         self.ctx.net.train()
 
         X = X.float().to(self.ctx.device)
@@ -176,7 +184,7 @@ class TrainContext:
 
         # Accuracy metric
         acc = utils.jaccard(y_hat, y)
-        #print('Accuracy: {}'.format(acc))
+        acc = torch.sigmoid(acc)
 
         # Loss metrics
         l = self.criterion(y_hat, y)
@@ -185,7 +193,8 @@ class TrainContext:
         l.backward()
         nn.utils.clip_grad_value_(self.ctx.net.parameters(), 0.1)
         self.optimizer.step()
-
+        if(epoch % 50 == 0):
+            print("Epoch {} - loss {} - acc {}".format(epoch//50, l, acc))
         return acc
 
     def run_test(self, X, y):
@@ -194,9 +203,10 @@ class TrainContext:
             X = X.float().to(self.ctx.device)
             y = y.float().to(self.ctx.device)
             y_hat = self.ctx.net(X)
+            acc = utils.jaccard(y_hat, y)
+            acc = torch.sigmoid(acc)
 
-            # May change loss to accuracy
-            return self.criterion(y_hat, y)
+            return acc
 
 # %%
 
@@ -249,9 +259,11 @@ if __name__ == '__main__':
             train_data = td.DataLoader(train_dataset, batch_size, shuffle=True, num_workers=num_workers)
             test_data = td.DataLoader(test_dataset, batch_size, shuffle=True, num_workers=num_workers)
 
-            result_train = 0        
+            result_train = 0     
+            epoch = 1   
             for X, y in train_data:
-                result_train += tctx.run_train(X, y)
+                result_train += tctx.run_train(epoch, X, y)
+                epoch += 1
             result_train = result_train / len(train_data)
 
             result_test = 0
@@ -259,21 +271,31 @@ if __name__ == '__main__':
                 result_test += tctx.run_test(X, y)
             result_test = result_test / len(test_data)
 
-            print('Fold {}/{}, train acc {}, test acc {}'.format(amount, int(size/0.10), result_train, result_test))
+            print('Fold {}/{}, train acc {}, test acc {}'.format(amount, int(size//10), result_train, result_test))
             if result_test > best_result:
                 best_result = result_test
                 best_split = [train_idx, test_idx]
             
             amount += 1
 
+            export_data = {
+                "train": best_split[0],
+                "test": best_split[1]
+            }
+
+            timestr = time.strftime("%Y%m%d-%H%M%S")
+            filename = 'indices-{}.pckl'.format(timestr)
+            with open(filename, 'wb') as out:
+                pickle.dump(export_data, out)
+                print("Successfully saved: {}".format(filename))
+
         export_data = {
             "train": best_split[0],
             "test": best_split[1]
         }
 
-        with open('indices.json', 'w') as out:
-            json.dump(export_data, out)
-
+        with open('indices.pckl', 'wb') as out:
+            pickle.dump(export_data, out)
 
     
     # %%

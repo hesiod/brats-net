@@ -8,7 +8,6 @@ __all__ = ['KFold']
 class KFold:
     def __init__(self):
         super(KFold, self).__init__()
-        pass
 
     def get_indices(self, n_splits, length):
         '''

@@ -10,6 +10,7 @@ from tqdm import tqdm, trange
 import argparse
 import datetime
 import json
+import jsonschema
 
 # %%
 import model.brats_dataset
@@ -52,7 +53,8 @@ class Context:
         elif params['scheduler'] == 'CosineAnnealingWarmRestarts':
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 self.optimizer,
-                T_0=50,
+                T_0=params['sgdr_initial_period'],
+                T_mult=params['sgdr_period_multiplier']
             )
         else:
             print('unknown scheduler "{}"'.format(params['scheduler']))
@@ -66,12 +68,12 @@ class Context:
         else:
             self.net.apply(model.unet.init_weights)
             self.global_iter = 0
-            self.save_checkpoint()
 
         self.device = model.utils.try_gpu()
         print('Using device {}'.format(self.device))
+        self.net.to(self.device)
 
-        self.model_shape = (1, 4, 240, 240)
+        self.model_shape = (1, params['input_channels'], 240, 240)
 
     def check_topology(self):
         with torch.no_grad():
@@ -165,19 +167,25 @@ class TrainContext:
 
         # Training
         self.ctx.net.train()
-        t = tqdm(desc='batch', total=len(train_iter), position=1, leave=False)
         train_loss_epoch = 0.0
+        train_acc_epoch = 0.0
         train_iter_count = len(train_iter)
-        for i, (X, y) in enumerate(train_iter):
-            batch_loss = self.run_batch(X, y)
+        t = tqdm(iterable=train_iter, desc='batch', position=1, leave=False)
+        for i, (X, y) in enumerate(t):
+            batch_loss, batch_acc = self.run_batch(X, y)
             train_loss_epoch += batch_loss
+            train_acc_epoch += batch_acc
             if self.ctx.params['scheduler'] == 'CosineAnnealingWarmRestarts':
                 self.ctx.scheduler.step(epoch + i / train_iter_count)
-            t.update(1)
-            t.set_postfix({'batchloss': batch_loss})
+            t.set_postfix({
+                'loss': batch_loss,
+                'acc': batch_acc,
+            })
         train_loss_epoch /= batch_count
+        train_acc_epoch /= batch_count
         t.close()
 
+        self.writer.add_scalar('accuracy/train', train_acc_epoch, self.ctx.global_iter)
         self.writer.add_scalar('loss/train', train_loss_epoch, self.ctx.global_iter)
 
         # Evaluating
@@ -185,20 +193,27 @@ class TrainContext:
         test_loss_epoch = 0.0
         test_acc_epoch = 0.0
         with torch.no_grad():
-            for X_test, y_test in test_iter:
+            t = tqdm(iterable=test_iter, desc='test', position=1, leave=False)
+            for X_test, y_test in t:
                 X_test = X_test.float().to(self.ctx.device)
-                y_test = y_test.float().to(self.ctx.device)
+                y_test = y_test.float().to(self.ctx.device).clamp(0., 1.)
                 y_test_hat = self.ctx.net(X_test).squeeze(1)
                 y_test_hat_sig = torch.sigmoid(y_test_hat) > 0.5
-                b_l = self.criterion(y_test_hat, y_test)
-                test_acc_epoch += utils.jaccard(y_test_hat_sig, y_test)
-                test_loss_epoch += b_l.item()
-            test_acc_epoch /= len(test_iter)
+                batch_loss = self.criterion(y_test_hat, y_test).item()
+                batch_acc = utils.jaccard(y_test_hat_sig, y_test)
+                test_loss_epoch += batch_loss
+                test_acc_epoch += batch_acc
+                t.set_postfix({
+                    'loss': batch_loss,
+                    'acc': batch_acc,
+                })
             test_loss_epoch /= len(test_iter)
+            test_acc_epoch /= len(test_iter)
+            t.close()
             if self.ctx.params['scheduler'] == 'ReduceLROnPlateau':
                 self.ctx.scheduler.step(test_loss_epoch)
 
-        self.writer.add_scalar('accuracy/test_acc', test_acc_epoch, self.ctx.global_iter)
+        self.writer.add_scalar('accuracy/test', test_acc_epoch, self.ctx.global_iter)
         self.writer.add_scalar('loss/test', test_loss_epoch, self.ctx.global_iter)
         self.writer.flush()
 
@@ -211,12 +226,14 @@ class TrainContext:
         self.ctx.global_iter += 1
 
         X = X.float().to(self.ctx.device)
-        y = y.float().to(self.ctx.device)
+        y = y.float().to(self.ctx.device).clamp(0., 1.)
         y_hat = self.ctx.net(X).squeeze(1)
+        y_us = y.unsqueeze(1)
+        y_hat_us = y_hat.unsqueeze(1)
+        y_hat_us_sig = torch.sigmoid(y_hat_us) # > 0.5
 
         # Accuracy metric
-        acc = utils.jaccard(y_hat, y)
-        #print('Accuracy: {}'.format(acc))
+        acc = utils.jaccard(y_hat_us_sig > 0.5, y_us)
 
         # Loss metrics
         l = self.criterion(y_hat, y)
@@ -231,14 +248,13 @@ class TrainContext:
             self.writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), self.ctx.global_iter)
             self.writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), self.ctx.global_iter)
 
-        self.writer.add_scalar('accuracy/train_acc', acc.item(), self.ctx.global_iter)
-        self.writer.add_scalar('loss/total_loss', l.item(), self.ctx.global_iter)
-        self.writer.add_images('masks/0_base', X, self.ctx.global_iter)
-        y_us = y.unsqueeze(1)
-        y_hat_us = y_hat.unsqueeze(1)
-        y_hat_us_sig = torch.sigmoid(y_hat_us) > 0.5
+        self.writer.add_scalar('batch/accuracy', acc, self.ctx.global_iter)
+        self.writer.add_scalar('batch/loss', l.item(), self.ctx.global_iter)
+
+        self.writer.add_images('masks/0_base', X[:, 0:3, :, :], self.ctx.global_iter)
         self.writer.add_images('masks/1_true', y_us, self.ctx.global_iter)
         self.writer.add_images('masks/2_predicted', y_hat_us_sig, self.ctx.global_iter)
+        self.writer.add_images('masks/3_predicted_sig', y_hat_us_sig > 0.5, self.ctx.global_iter)
         self.writer.add_images('extra/raw', y_hat_us, self.ctx.global_iter)
         overlaid = torch.cat([y_hat_us_sig.float(), y_us, torch.zeros_like(y_us)], dim=1)
         self.writer.add_images('extra/overlaid', overlaid, self.ctx.global_iter)
@@ -248,8 +264,7 @@ class TrainContext:
 
         self.writer.flush()
 
-        return l.item()
-
+        return l.item(), acc
 
 # %%
 
@@ -260,10 +275,15 @@ if __name__ == '__main__':
     parser.add_argument("--params", help="hyperparameters", required=True)
     args = parser.parse_args()
 
-    dctx = model.brats_dataset.DataSplitter(args.dataset)
+    with open('params.schema', "r") as schema_file:
+        params_schema = json.load(schema_file)
 
     with open(args.params, "r") as params_file:
         params = json.load(params_file)
+
+    jsonschema.validate(params, schema=params_schema)
+
+    dctx = model.brats_dataset.DataSplitter(args.dataset)
 
     should_check = True
 

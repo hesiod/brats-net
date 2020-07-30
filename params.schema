@@ -1,0 +1,65 @@
+{
+    "$schema": "http://json-schema.org/draft/2019-09/schema#",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "meta_name": { "type": "string" },
+        "model": {
+            "type": "string",
+            "enum": ["UNet", "UResNet"]
+        },
+        "input_channels": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "gradient_clip_value": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "batch_size": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "num_workers": { "type": "integer" },
+        "num_epochs": { "type": "integer" },
+        "lr": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "optimizer": {
+            "type": "string",
+            "enum": ["SGD", "AdamW"]
+        },
+        "sgd_momentum": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0
+        },
+        "sgd_weight_decay": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0
+        },
+        "adam_weight_decay": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0
+        },
+        "scheduler": {
+            "type": "string",
+            "enum": ["CosineAnnealingWarmRestarts", "ReduceLROnPlateau"]
+        },
+        "lr_scheduler_patience": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "sgdr_initial_period": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "sgdr_period_multiplier": {
+            "type": "integer",
+            "minimum": 1
+        }
+    }
+}

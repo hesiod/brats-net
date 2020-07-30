@@ -11,13 +11,16 @@ def try_gpu(i=0):  #@save
 
 # Jaccard metric is defined by the ratio of pixels in the prediction AND the ground truth (intersection) to the pixels in at least one of these (union)
 def jaccard(prediction, truth):
-    acc= []
+    assert(prediction.shape == truth.shape)
 
     with torch.no_grad():
-        for i in range(prediction.shape[0]):
-            intersection = torch.logical_and(prediction[i, :, :], truth[i, :, :])
-            union = torch.logical_or(prediction[i, :, :], truth[i, :, :])
-            acc.append(torch.sum(intersection).double() / torch.sum(union).double())
-
+        batch_count = prediction.shape[0]
+        acc = torch.empty(batch_count)
+        for i in range(batch_count):
+            intersection = torch.logical_and(prediction[i, ...], truth[i, ...])
+            union        = torch.logical_or (prediction[i, ...], truth[i, ...])
+            acc[i] = torch.sum(intersection).double() / torch.sum(union).double()
+        acc_mean = acc.mean().item()
+        print(acc_mean)
     # Return mean of batch
-    return sum(acc)/len(acc)
+    return acc_mean

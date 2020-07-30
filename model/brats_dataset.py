@@ -6,8 +6,13 @@ import h5py
 
 from tqdm import tqdm, trange
 
-__all__ = ['BRATS', 'DataSplitter']
+__all__ = ['BRATS', 'DataSplitter', 'RandomSubset']
 
+
+class RandomSubset(td.Subset):
+    def __init__(self, dataset, size):
+        indices = torch.randperm(len(dataset))[0:size-1]
+        super().__init__(dataset, indices)
 
 class BRATS(td.ConcatDataset):
     def __init__(self, hdf_filename):

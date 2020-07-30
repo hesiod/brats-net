@@ -112,7 +112,7 @@ class DataPrep():
                         'image',
                         data=nifti_data,
                         compression="gzip",
-                        chunks=(1, 240, 240),
+                        chunks=True,
                         shuffle=True
                         )
                     label_ds = slice_grp.create_dataset(

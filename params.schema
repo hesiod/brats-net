@@ -20,6 +20,10 @@
             "type": "integer",
             "minimum": 1
         },
+        "epoch_size": {
+            "type": "integer",
+            "minimum": 1
+        },
         "num_workers": { "type": "integer" },
         "num_epochs": { "type": "integer" },
         "lr": {

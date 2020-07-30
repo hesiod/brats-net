@@ -113,10 +113,17 @@ class Context:
         torch.save(state_dict, self.checkpoint_path())
 
 class TrainContext:
-    def __init__(self, context, data_context, criterion):
+    def __init__(self, context, dataset, criterion):
         self.ctx = context
-        self.data = data_context
         self.criterion = criterion
+
+        ds_size = len(dataset)
+        test_count = ds_size // 10
+        train_count = ds_size - test_count
+        test_indices = torch.arange(start=0, end=test_count)
+        train_indices = torch.arange(start=test_count+1, end=ds_size-1)
+        self.train_dataset = td.Subset(dataset, indices=train_indices)
+        self.test_dataset  = td.Subset(dataset, indices=test_indices)
 
         log_dir = os.path.join(
             'runs',
@@ -138,10 +145,6 @@ class TrainContext:
         print('done')
 
     def run(self, num_epochs):
-        self.ctx.net.to(self.ctx.device)
-
-        self.brats_train_perepoch = self.data.split_data(num_epochs)
-
         t = trange(num_epochs-1, desc='epoch', position=0)
         for epoch in t:
             train_loss_epoch, test_loss_epoch = self.run_epoch(epoch)
@@ -154,15 +157,23 @@ class TrainContext:
 
 
     def run_epoch(self, epoch):
+        epoch_train_dataset = model.brats_dataset.RandomSubset(
+            self.train_dataset,
+            params['epoch_size']
+        )
+        epoch_test_dataset = model.brats_dataset.RandomSubset(
+            self.test_dataset,
+            params['epoch_size']
+        )
         train_iter = td.DataLoader(
-            self.brats_train_perepoch[epoch],
+            epoch_train_dataset,
             self.ctx.params['batch_size'],
             shuffle=True,
             num_workers=self.ctx.params['num_workers'],
             pin_memory=True
         )
         test_iter = td.DataLoader(
-            self.brats_train_perepoch[epoch+1],
+            epoch_test_dataset,
             self.ctx.params['batch_size'],
             shuffle=True,
             num_workers=self.ctx.params['num_workers'],
@@ -289,7 +300,7 @@ if __name__ == '__main__':
 
     jsonschema.validate(params, schema=params_schema)
 
-    dctx = model.brats_dataset.DataSplitter(args.dataset)
+    dctx = model.brats_dataset.BRATS(args.dataset)
 
     should_check = True
 

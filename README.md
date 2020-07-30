@@ -3,16 +3,29 @@
 
 ## Project structure
 
-- **`unet.ipynb`**: Demo Jupyter notebook
+- **`unet.ipynb`: Demo Jupyter notebook**
 - `train.py`: Main training program
 - `prepare_data.py`: Data preprocessing and HDF5 generation script (see below)
 - `model`
   - `brats_dataset.py`: `BRATS` dataset class that allows loading the HDF5 dataset
   - `loss.py`: Loss functions
   - `metrics.py`: Dice coefficient and Jaccard index as metrics
-  - `res_unet.py`: Residual variant U-Net
+  - `res_unet.py`: Residual variant of the U-Net
   - `unet.py`: Classical, non-residual U-Net
   - `utils.py`: Utility functions
+
+## Installing dependencies
+The dependencies are specified in `requirements.txt`.
+
+It is recommended
+to install the project's dependencies
+in a virtual environment using pip.
+Example invocation:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ## Preparing the dataset
 The training program `train.py` requires the original dataset from the
@@ -28,31 +41,38 @@ Medical Decathlon website.
 
 The script performs normalization of the channel data, culls empty slices and
 slices without labeled features and writes the remaining transformed
-slices into an HDF file.
+slices into an HDF5 file.
 
 **Note**: Running the data preparation script
-can take up to multiple hours
+can take up to *multiple hours*
 depending on system I/O performance.
 
 ## Training configuration
 Adapt the provided sample configuration file `params.sample.json`
 to suit your needs.
 
-Parameter description:
- - `meta_name`: Name of this training run
+### Parameter description
+#### Parameters related to the Model
  - `model`: `UNet` for the non-residual or `UResNet` for the residual variant
  - `input_channels`: Number of input channels (4 for BraTS)
- - `gradient_clip_value`: Gradient clip value
+
+#### Parameters related to Training
+ - `meta_name`: Name of this training run
  - `batch_size`: Batch size
  - `epoch_size`: Number of slices per epoch
  - `num_workers`: Number of data loader workers
  - `num_epochs`: Number of epochs
- - `lr`: Learning Rate
+
+#### Parameters related to the Optimizer
  - `optimizer`: `AdamW` or `SGD`
  - `sgd_momentum`: Momentum for `SGD`
  - `sgd_weight_decay`: Weight decay for `SGD`
  - `adam_weight_decay`: Weight decay for `AdamW`
- - `scheduler`: `CosineAnnealingWarmRestarts` or `ReduceLROnPlateau`
+ - `gradient_clip_value`: Gradient clip value
+
+#### Parameters related to the Learning Rate
+ - `lr`: Learning Rate
+ - `scheduler`: Learning Rate Scheduler, `CosineAnnealingWarmRestarts` or `ReduceLROnPlateau`
  - `sgdr_initial_period`: Initial period for the `CosineAnnealingWarmRestarts` scheduler (`T_0` in the paper)
  - `sgdr_period_multiplier`: Period length multiplier for the `CosineAnnealingWarmRestarts` scheduler (`T_mult` in the paper)
  - `lr_scheduler_patience`: Patience for the `ReduceLROnPlateau` scheduler (number of epochs without test loss improvement to wait before reducing learning rate)
@@ -62,7 +82,7 @@ Run `train.py` with the following parameters:
 
 - `--params`: Training configuration (see above)
 - `--checkpoint` (optional): Load model from training checkpoint
-- As the last parameter, include the HDF5 dataset
+- As the last parameter, include the path to the HDF5 dataset
 
 Example invocation:
 ```

@@ -15,6 +15,7 @@ import jsonschema
 # %%
 import model.brats_dataset
 import model.unet
+import model.res_unet
 import model.utils as utils
 import model.loss
 
@@ -26,7 +27,12 @@ class Context:
     def __init__(self, params, checkpoint_filename=None, criterion=None):
         self.params = params
 
-        self.net = model.unet.Net()
+        if params['model'] == 'UNet':
+            self.net = model.unet.Net(params['input_channels'])
+        elif params['model'] == 'UResNet':
+            self.net = model.res_unet.UResNet(params['input_channels'])
+        else:
+            print('unknown model "{}"'.format(params['model']))
 
         if params['optimizer'] == 'AdamW':
             self.optimizer = torch.optim.AdamW(

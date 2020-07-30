@@ -21,13 +21,6 @@ import model.loss
 import model.kfold
 
 # %%
-
-class NDArrayEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, mx.nd.NDArray):
-            return obj.asnumpy().tolist()
-        return json.JSONEncoder.default(self, obj)
-
 class Context:
     def __init__(self, filename=None, criterion=None):
         self.net = model.unet.Net()
